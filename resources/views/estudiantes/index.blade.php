@@ -278,6 +278,9 @@
                                 <td><span class="badge {{ $e->estado }}">{{ ucfirst($e->estado) }}</span></td>
                                 <td>
                                     <div class="actions">
+                                        <a class="icon-btn" href="{{ route('asignaciones.create', $e->id_estudiante) }}"
+                                           title="Asignar materia, grupo y docente" aria-label="Asignar materia, grupo y docente a {{ $e->nombre_completo }}">
+                                            <svg class="i"><use href="#i-exams"/></svg></a>
                                         <a class="icon-btn" href="{{ route('estudiantes.show', $e) }}" title="Ver" aria-label="Ver">
                                             <svg class="i"><use href="#i-eye"/></svg></a>
                                         <a class="icon-btn" href="{{ route('estudiantes.edit', $e) }}" title="Editar" aria-label="Editar">
