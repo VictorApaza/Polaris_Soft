@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\UsuarioController;
 
 /*
 |--------------------------------------------------------------------------
@@ -12,8 +13,12 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
-
+/*
 Route::get('/', function () {
     //return view('welcome');
     return view('estudiantes.index');
 });
+*/
+Route::get('/', fn () => redirect()->route('usuarios.index'));
+
+Route::resource('usuarios', UsuarioController::class);
