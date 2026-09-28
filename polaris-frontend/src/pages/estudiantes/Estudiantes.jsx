@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '../../services/api';
+import api from '../../api/api';
 
 function Estudiantes() {
 
@@ -18,30 +18,26 @@ function Estudiantes() {
         estado: 'activo'
     });
 
-    const cargarEstudiantes = async () => {
+const cargarEstudiantes = async () => {
 
-        try {
+    try {
 
-            setCargando(true);
+        setCargando(true);
 
-            const response = await api.get('/estudiantes');
+        const response = await api.get('/estudiantes');
 
-            setEstudiantes(
-                response.data.data?.data ||
-                response.data.data ||
-                []
-            );
+        setEstudiantes(response.data);
 
-        } catch (error) {
+    } catch (error) {
 
-            console.error('Error al cargar estudiantes:', error);
+        console.error('Error al cargar estudiantes:', error);
 
-        } finally {
+    } finally {
 
-            setCargando(false);
+        setCargando(false);
 
-        }
-    };
+    }
+};
 
     useEffect(() => {
         cargarEstudiantes();

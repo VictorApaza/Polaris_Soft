@@ -10,36 +10,65 @@ class DocenteController extends Controller
     public function index()
     {
         $docentes = Docente::orderBy('nombre')->get();
-        return view('docentes.index', compact('docentes'));
+
+        return response()->json([
+            'success' => true,
+            'data' => $docentes
+        ]);
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'nombre' => ['required', 'string', 'max:150'],
-            'ci' => ['required', 'string', 'max:20', 'unique:docentes,ci'],
+        $datos = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'ci' => ['required', 'string', 'max:50', 'unique:docentes,ci'],
         ]);
 
-        Docente::create($data);
+        $docente = Docente::create($datos);
 
-        return back()->with('success', 'Docente registrado correctamente.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Docente registrado correctamente.',
+            'data' => $docente
+        ], 201);
+    }
+
+    public function show(Docente $docente)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $docente->load('grupos')
+        ]);
     }
 
     public function update(Request $request, Docente $docente)
     {
-        $data = $request->validate([
-            'nombre' => ['required', 'string', 'max:150'],
-            'ci' => ['required', 'string', 'max:20', 'unique:docentes,ci,' . $docente->id],
+        $datos = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'ci' => [
+                'required',
+                'string',
+                'max:50',
+                'unique:docentes,ci,' . $docente->id
+            ],
         ]);
 
-        $docente->update($data);
+        $docente->update($datos);
 
-        return back()->with('success', 'Docente actualizado correctamente.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Docente actualizado correctamente.',
+            'data' => $docente
+        ]);
     }
 
     public function destroy(Docente $docente)
     {
         $docente->delete();
-        return back()->with('success', 'Docente eliminado.');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Docente eliminado correctamente.'
+        ]);
     }
 }

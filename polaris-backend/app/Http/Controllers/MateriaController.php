@@ -8,47 +8,69 @@ use Illuminate\Http\Request;
 class MateriaController extends Controller
 {
     public function index()
-{
-    $materias = Materia::orderBy('nombre')->get();
-
-    return response()->json([
-        'success' => true,
-        'data' => $materias
-    ]);
-}
-   /* public function index()
     {
-        $materias = Materia::orderBy('nombre')->get();
-        return view('materias.index', compact('materias'));
-    }*/
+        $materias = Materia::with('grupos')
+            ->orderBy('nombre')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $materias
+        ]);
+    }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'nombre' => ['required', 'string', 'max:150'],
-            'sigla' => ['nullable', 'string', 'max:20'],
+        $datos = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'sigla' => ['required', 'string', 'max:50', 'unique:materias,sigla'],
         ]);
 
-        Materia::create($data);
+        $materia = Materia::create($datos);
 
-        return back()->with('success', 'Materia registrada correctamente.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Materia registrada correctamente.',
+            'data' => $materia
+        ], 201);
+    }
+
+    public function show(Materia $materia)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $materia->load('grupos.docente')
+        ]);
     }
 
     public function update(Request $request, Materia $materia)
     {
-        $data = $request->validate([
-            'nombre' => ['required', 'string', 'max:150'],
-            'sigla' => ['nullable', 'string', 'max:20'],
+        $datos = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'sigla' => [
+                'required',
+                'string',
+                'max:50',
+                'unique:materias,sigla,' . $materia->id
+            ],
         ]);
 
-        $materia->update($data);
+        $materia->update($datos);
 
-        return back()->with('success', 'Materia actualizada correctamente.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Materia actualizada correctamente.',
+            'data' => $materia
+        ]);
     }
 
     public function destroy(Materia $materia)
     {
         $materia->delete();
-        return back()->with('success', 'Materia eliminada.');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Materia eliminada correctamente.'
+        ]);
     }
 }

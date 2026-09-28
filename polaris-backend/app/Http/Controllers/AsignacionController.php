@@ -3,71 +3,179 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asignacion;
-use App\Models\Docente;
 use App\Models\Estudiante;
 use App\Models\Grupo;
-use App\Models\Materia;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class AsignacionController extends Controller
 {
-    /**
-     * Muestra el formulario para asignar materia, grupo y docente
-     * a un estudiante en particular.
-     * Esta es la vista que hace Octavio (resources/views/asignaciones/create.blade.php)
-     */
-    public function create(Estudiante $estudiante)
+    public function index()
     {
-        $materias = Materia::orderBy('nombre')->get();
-        $grupos = Grupo::with('materia')->orderBy('nombre')->get();
-        $docentes = Docente::orderBy('nombre')->get();
-        $asignaciones = Asignacion::with(['materia', 'grupo', 'docente'])
-            ->where('estudiante_id', $estudiante->id)
-            ->get();
+        $asignaciones = Asignacion::with([
+            'estudiante',
+            'materia',
+            'grupo',
+            'docente'
+        ])
+        ->latest()
+        ->get();
 
-        return view('asignaciones.create', compact('estudiante', 'materias', 'grupos', 'docentes', 'asignaciones'));
+        return response()->json([
+            'success' => true,
+            'data' => $asignaciones
+        ]);
     }
 
-    /**
-     * Guarda la asignación de materia + grupo + docente para el estudiante.
-     * Espera del formulario: materia_id, grupo_id, docente_id (opcional).
-     */
-    public function store(Request $request, Estudiante $estudiante)
+    public function store(Request $request)
     {
-        $data = $request->validate([
-            'materia_id' => ['required', 'exists:materias,id'],
-            'grupo_id' => ['required', 'exists:grupos,id'],
-            'docente_id' => ['nullable', 'exists:docentes,id'],
-        ], [
-            'materia_id.required' => 'Selecciona una materia.',
-            'grupo_id.required' => 'Selecciona un grupo.',
+        $datos = $request->validate([
+            'estudiante_id' => [
+                'required',
+                'integer',
+                'exists:estudiante,id_estudiante'
+            ],
+            'materia_id' => [
+                'required',
+                'integer',
+                'exists:materias,id'
+            ],
+            'grupo_id' => [
+                'required',
+                'integer',
+                'exists:grupos,id'
+            ],
+            'docente_id' => [
+                'required',
+                'integer',
+                'exists:docentes,id'
+            ],
         ]);
 
-        $data['estudiante_id'] = $estudiante->id;
+        $grupo = Grupo::findOrFail($datos['grupo_id']);
 
-        // Evita duplicar la misma materia para el mismo estudiante
-        $yaExiste = Asignacion::where('estudiante_id', $estudiante->id)
-            ->where('materia_id', $data['materia_id'])
-            ->exists();
-
-        if ($yaExiste) {
-            return back()->withErrors([
-                'materia_id' => 'Este estudiante ya tiene una asignación registrada para esa materia.',
-            ])->withInput();
+        if ((int) $grupo->materia_id !== (int) $datos['materia_id']) {
+            throw ValidationException::withMessages([
+                'grupo_id' => 'El grupo seleccionado no pertenece a la materia seleccionada.'
+            ]);
         }
 
-        Asignacion::create($data);
+        if ((int) $grupo->docente_id !== (int) $datos['docente_id']) {
+            throw ValidationException::withMessages([
+                'docente_id' => 'El docente seleccionado no corresponde al grupo seleccionado.'
+            ]);
+        }
 
-        return back()->with('success', 'Asignación registrada correctamente.');
+        $existe = Asignacion::where('estudiante_id', $datos['estudiante_id'])
+            ->where('materia_id', $datos['materia_id'])
+            ->where('grupo_id', $datos['grupo_id'])
+            ->exists();
+
+        if ($existe) {
+            throw ValidationException::withMessages([
+                'estudiante_id' => 'El estudiante ya tiene esta asignación.'
+            ]);
+        }
+
+        $asignacion = Asignacion::create($datos);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Asignación registrada correctamente.',
+            'data' => $asignacion->load([
+                'estudiante',
+                'materia',
+                'grupo',
+                'docente'
+            ])
+        ], 201);
+    }
+
+    public function show(Asignacion $asignacion)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $asignacion->load([
+                'estudiante',
+                'materia',
+                'grupo',
+                'docente'
+            ])
+        ]);
+    }
+
+    public function update(Request $request, Asignacion $asignacion)
+    {
+        $datos = $request->validate([
+            'estudiante_id' => [
+                'required',
+                'integer',
+                'exists:estudiante,id_estudiante'
+            ],
+            'materia_id' => [
+                'required',
+                'integer',
+                'exists:materias,id'
+            ],
+            'grupo_id' => [
+                'required',
+                'integer',
+                'exists:grupos,id'
+            ],
+            'docente_id' => [
+                'required',
+                'integer',
+                'exists:docentes,id'
+            ],
+        ]);
+
+        $grupo = Grupo::findOrFail($datos['grupo_id']);
+
+        if ((int) $grupo->materia_id !== (int) $datos['materia_id']) {
+            throw ValidationException::withMessages([
+                'grupo_id' => 'El grupo seleccionado no pertenece a la materia seleccionada.'
+            ]);
+        }
+
+        if ((int) $grupo->docente_id !== (int) $datos['docente_id']) {
+            throw ValidationException::withMessages([
+                'docente_id' => 'El docente seleccionado no corresponde al grupo seleccionado.'
+            ]);
+        }
+
+        $duplicada = Asignacion::where('estudiante_id', $datos['estudiante_id'])
+            ->where('materia_id', $datos['materia_id'])
+            ->where('grupo_id', $datos['grupo_id'])
+            ->where('id', '!=', $asignacion->id)
+            ->exists();
+
+        if ($duplicada) {
+            throw ValidationException::withMessages([
+                'estudiante_id' => 'El estudiante ya tiene esta asignación.'
+            ]);
+        }
+
+        $asignacion->update($datos);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Asignación actualizada correctamente.',
+            'data' => $asignacion->load([
+                'estudiante',
+                'materia',
+                'grupo',
+                'docente'
+            ])
+        ]);
     }
 
     public function destroy(Asignacion $asignacion)
     {
-        $estudianteId = $asignacion->estudiante_id;
         $asignacion->delete();
 
-        return redirect()
-            ->route('asignaciones.create', $estudianteId)
-            ->with('success', 'Asignación eliminada.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Asignación eliminada correctamente.'
+        ]);
     }
 }

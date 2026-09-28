@@ -12,19 +12,15 @@ class Estudiante1Controller extends Controller
     /**
      * Listar estudiantes
      */
-    public function index(Request $request)
-    {
-        $estudiantes = Estudiante::buscar($request->buscar)
-            ->orderBy('apellidos')
-            ->orderBy('nombres')
-            ->paginate(10);
+public function index(Request $request)
+{
+    $estudiantes = Estudiante::buscar($request->search)
+        ->orderBy('apellidos')
+        ->orderBy('nombres')
+        ->get();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Estudiantes obtenidos correctamente.',
-            'data' => $estudiantes
-        ]);
-    }
+    return response()->json($estudiantes);
+}
 
     /**
      * Registrar estudiante

@@ -44,19 +44,24 @@ function Sidebar({ pagina, cambiarPagina }) {
                     </p>
 
                     <button
-                        className={`menu-item ${pagina === 'dashboard' ? 'active' : ''}`}
+                        className={`menu-item ${
+                            pagina === 'dashboard' ? 'active' : ''
+                        }`}
                         onClick={() => navegar('dashboard')}
                     >
                         <span>⌂</span>
                         Dashboard
                     </button>
 
+
                     <p className="menu-title">
                         GESTIÓN ACADÉMICA
                     </p>
 
                     <button
-                        className={`menu-item ${pagina === 'estudiantes' ? 'active' : ''}`}
+                        className={`menu-item ${
+                            pagina === 'estudiantes' ? 'active' : ''
+                        }`}
                         onClick={() => navegar('estudiantes')}
                     >
                         <span>👨‍🎓</span>
@@ -64,7 +69,19 @@ function Sidebar({ pagina, cambiarPagina }) {
                     </button>
 
                     <button
-                        className={`menu-item ${pagina === 'examenes' ? 'active' : ''}`}
+                        className={`menu-item ${
+                            pagina === 'asignaciones' ? 'active' : ''
+                        }`}
+                        onClick={() => navegar('asignaciones')}
+                    >
+                        <span>📚</span>
+                        Asignaciones
+                    </button>
+
+                    <button
+                        className={`menu-item ${
+                            pagina === 'examenes' ? 'active' : ''
+                        }`}
                         onClick={() => navegar('examenes')}
                     >
                         <span>📝</span>
@@ -74,6 +91,7 @@ function Sidebar({ pagina, cambiarPagina }) {
                 </nav>
 
                 <div className="sidebar-footer">
+
                     <div className="user-avatar">
                         A
                     </div>
@@ -82,6 +100,7 @@ function Sidebar({ pagina, cambiarPagina }) {
                         <strong>Administrador</strong>
                         <small>Sistema</small>
                     </div>
+
                 </div>
 
             </aside>

@@ -2,55 +2,97 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    /**
-     * Muestra el formulario de login.
-     * La vista (resources/views/auth/login.blade.php) la crea Carlos.
-     */
-    public function showLoginForm()
-    {
-        return view('auth.login');
-    }
-
-    /**
-     * Procesa el intento de login.
-     * Espera del formulario: email, password, remember (checkbox opcional).
-     */
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required'],
+        $datos = $request->validate([
+            'email' => [
+                'required',
+                'email',
+            ],
+
+            'password' => [
+                'required',
+                'string',
+            ],
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            $request->session()->regenerate();
+        $usuario = User::with('rol')
+            ->where('email', $datos['email'])
+            ->first();
 
-            return match (Auth::user()->rol) {
-                'administrador' => redirect()->intended('/admin/dashboard'),
-                'docente' => redirect()->intended('/docente/dashboard'),
-                default => redirect()->intended('/control/dashboard'),
-            };
+        if (!$usuario || !Hash::check(
+            $datos['password'],
+            $usuario->password
+        )) {
+            return response()->json([
+                'message' => 'Correo o contraseña incorrectos.'
+            ], 401);
         }
 
-        return back()->withErrors([
-            'email' => 'Las credenciales no coinciden con nuestros registros.',
-        ])->onlyInput('email');
+        if (!$usuario->activo ?? false) {
+            return response()->json([
+                'message' => 'El usuario se encuentra inactivo.'
+            ], 403);
+        }
+
+        $token = $usuario->createToken(
+            'polaris-app'
+        )->plainTextToken;
+
+        return response()->json([
+            'message' => 'Inicio de sesión exitoso.',
+
+            'token' => $token,
+
+            'user' => [
+                'id' => $usuario->id,
+                'name' => $usuario->name,
+                'email' => $usuario->email,
+
+                'rol' => [
+                    'id' => $usuario->rol->id,
+                    'nombre' => $usuario->rol->nombre,
+                ],
+
+                'estudiante_id' => $usuario->estudiante_id,
+                'docente_id' => $usuario->docente_id,
+            ],
+        ]);
     }
 
-    /**
-     * Cierra la sesión del usuario autenticado.
-     */
     public function logout(Request $request)
     {
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $request->user()
+            ->currentAccessToken()
+            ->delete();
 
-        return redirect('/login');
+        return response()->json([
+            'message' => 'Sesión cerrada correctamente.'
+        ]);
+    }
+
+    public function me(Request $request)
+    {
+        $usuario = $request->user()->load('rol');
+
+        return response()->json([
+            'id' => $usuario->id,
+            'name' => $usuario->name,
+            'email' => $usuario->email,
+
+            'rol' => [
+                'id' => $usuario->rol->id,
+                'nombre' => $usuario->rol->nombre,
+            ],
+
+            'estudiante_id' => $usuario->estudiante_id,
+            'docente_id' => $usuario->docente_id,
+        ]);
     }
 }
