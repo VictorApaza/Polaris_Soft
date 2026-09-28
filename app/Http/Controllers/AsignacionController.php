@@ -14,7 +14,7 @@ class AsignacionController extends Controller
     /**
      * Muestra el formulario para asignar materia, grupo y docente
      * a un estudiante en particular.
-     * Esta es la vista que hace Octavio (resources/views/asignaciones/create.blade.php)
+     * Esta es la vista que hace Octavio (resources/views/asignaciones/create.blade.php) a
      */
     public function create(Estudiante $estudiante)
     {
