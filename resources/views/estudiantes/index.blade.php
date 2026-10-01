@@ -85,7 +85,7 @@
                                 <button type="button" class="icon-btn" title="Editar" aria-label="Editar"
                                         data-edit="{{ json_encode($payload) }}" data-url="{{ $url }}" data-id="{{ $e->getKey() }}">
                                     <svg class="i"><use href="#i-edit"/></svg></button>
-                                <a class="icon-btn" href="{{ route('asignaciones.create', $e) }}" title="Asignar materia, grupo y docente" aria-label="Asignar materia, grupo y docente">
+                                <a class="icon-btn" href="{{ route('asignaciones.create', $e) }}" title="Asignar materia, grupo y docente" aria-label="Asignar materia, grupo y docente a {{ $e->nombre_completo }}">
                                     <svg class="i"><use href="#i-exams"/></svg></a>
                                 <form method="POST" action="{{ $url }}"
                                       onsubmit="return confirm('¿Eliminar a este estudiante? Esta acción no se puede deshacer.')">

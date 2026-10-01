@@ -25,6 +25,8 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
 
     Route::resource('estudiantes', EstudianteController::class)->except(['create', 'show', 'edit']);
+    Route::get('/estudiantes/{estudiante}/asignaciones/create', [AsignacionController::class, 'create'])
+        ->whereNumber('estudiante');
 
     // Materias, docentes y grupos (RQ27)
     Route::resource('materias', MateriaController::class)->only(['index', 'store', 'update', 'destroy']);
