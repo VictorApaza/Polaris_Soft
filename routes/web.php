@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AsignacionController;
+use App\Http\Controllers\AsignacionApiController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocenteController;
@@ -25,6 +26,8 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
 
     Route::resource('estudiantes', EstudianteController::class)->except(['create', 'show', 'edit']);
+    Route::get('/estudiantes/{estudiante}/asignaciones/create', [AsignacionController::class, 'create'])
+        ->whereNumber('estudiante');
 
     // Materias, docentes y grupos (RQ27)
     Route::resource('materias', MateriaController::class)->only(['index', 'store', 'update', 'destroy']);
@@ -35,6 +38,20 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::get('/estudiantes/{estudiante}/asignaciones', [AsignacionController::class, 'create'])->name('asignaciones.create');
     Route::post('/estudiantes/{estudiante}/asignaciones', [AsignacionController::class, 'store'])->name('asignaciones.store');
     Route::delete('/asignaciones/{asignacion}', [AsignacionController::class, 'destroy'])->name('asignaciones.destroy');
+
+    // Estas rutas conservan la sesión y la protección CSRF de la aplicación.
+    Route::prefix('api')->name('api.')->group(function () {
+        Route::get('/materias', [AsignacionApiController::class, 'materias'])->name('materias.index');
+        Route::get('/materias/{materia}/grupos', [AsignacionApiController::class, 'grupos'])
+            ->whereNumber('materia')
+            ->name('materias.grupos');
+        Route::get('/grupos/{grupo}/docentes', [AsignacionApiController::class, 'docentes'])
+            ->whereNumber('grupo')
+            ->name('grupos.docentes');
+        Route::post('/estudiantes/{estudiante}/asignaciones', [AsignacionApiController::class, 'store'])
+            ->whereNumber('estudiante')
+            ->name('estudiantes.asignaciones.store');
+    });
 
     Route::resource('examenes', ExamenController::class)
         ->parameters(['examenes' => 'examen'])
