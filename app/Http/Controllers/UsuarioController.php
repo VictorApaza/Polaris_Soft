@@ -25,7 +25,11 @@ class UsuarioController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'email' => ['required', 'email', 'max:150', 'unique:users,email'],
+            'email' => [
+                'required', 'email', 'max:150',
+                ...($request->input('rol') === 'docente' ? ['regex:/^[^@\s]+@umss\.edu$/i'] : []),
+                'unique:users,email',
+            ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'rol' => ['required', Rule::in(array_keys(User::ROLES))],
             'estado' => ['required', Rule::in(['activo', 'inactivo'])],
@@ -40,7 +44,11 @@ class UsuarioController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'email' => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($usuario->id)],
+            'email' => [
+                'required', 'email', 'max:150',
+                ...($request->input('rol') === 'docente' ? ['regex:/^[^@\s]+@umss\.edu$/i'] : []),
+                Rule::unique('users', 'email')->ignore($usuario->id),
+            ],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'rol' => ['required', Rule::in(array_keys(User::ROLES))],
             'estado' => ['required', Rule::in(['activo', 'inactivo'])],
@@ -77,6 +85,7 @@ class UsuarioController extends Controller
     {
         return [
             'email.unique' => 'Ya existe un usuario con ese correo.',
+            'email.regex' => 'El correo de los docentes debe terminar en @umss.edu.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
         ];

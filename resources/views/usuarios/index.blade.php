@@ -100,7 +100,7 @@
                 </div>
                 <div class="field">
                     <label for="u-email">Correo institucional <span class="req">*</span></label>
-                    <input id="u-email" type="email" name="email" value="{{ old('email') }}" placeholder="usuario@universidad.edu" required>
+                    <input id="u-email" type="email" name="email" value="{{ old('email') }}" placeholder="usuario@umss.edu" required>
                     @error('email')<p class="err">{{ $message }}</p>@enderror
                 </div>
                 <div class="row2">
@@ -147,10 +147,28 @@
     const MODAL = 'modal-usuario';
     const hint = document.getElementById('u-pass-hint');
     const txt = document.querySelector('[data-submit-text]');
+    const emailField = document.getElementById('u-email');
+    const roleField = document.getElementById('u-rol');
+
+    const actualizarPatronCorreo = () => {
+        const esDocente = roleField.value === 'docente';
+        emailField.placeholder = esDocente ? 'usuario@umss.edu' : 'usuario@universidad.edu';
+
+        if (esDocente) {
+            emailField.pattern = '[^@]+@umss\\.edu';
+            emailField.title = 'Use un correo institucional @umss.edu.';
+        } else {
+            emailField.removeAttribute('pattern');
+            emailField.removeAttribute('title');
+        }
+    };
+
+    roleField.addEventListener('change', actualizarPatronCorreo);
 
     document.getElementById('btn-nuevo-usuario').addEventListener('click', () => {
         hint.hidden = true; txt.textContent = 'Crear usuario';
         abrirForm(MODAL, { url: '{{ route('usuarios.store') }}', method: 'POST', title: 'Registrar nuevo usuario' });
+        actualizarPatronCorreo();
     });
 
     document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => {
@@ -159,6 +177,7 @@
             url: b.dataset.url, method: 'PUT', editing: b.dataset.id,
             values: JSON.parse(b.dataset.edit), title: b.dataset.pass ? 'Cambiar contraseña' : 'Editar usuario',
         });
+        actualizarPatronCorreo();
         if (b.dataset.pass) document.getElementById('u-password').focus();
     }));
 
@@ -170,6 +189,7 @@
             method: '{{ old('_editing') ? 'PUT' : 'POST' }}',
             title: '{{ old('_editing') ? 'Editar usuario' : 'Registrar nuevo usuario' }}',
         });
+        actualizarPatronCorreo();
     @endif
 </script>
 @endpush

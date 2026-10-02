@@ -142,24 +142,24 @@
                 <div class="row2">
                     <div class="field">
                         <label for="e-codigo">Código universitario <span class="req">*</span></label>
-                        <input id="e-codigo" name="codigo_universitario" value="{{ old('codigo_universitario') }}" placeholder="2024-00034" required>
+                        <input id="e-codigo" name="codigo_universitario" value="{{ old('codigo_universitario') }}" placeholder="202400034" inputmode="numeric" pattern="[0-9]{1,10}" maxlength="10" data-numeric-only title="Ingrese hasta 10 dígitos, sin letras ni símbolos." required>
                         @error('codigo_universitario')<p class="err">{{ $message }}</p>@enderror
                     </div>
                     <div class="field">
                         <label for="e-ci">CI / DNI <span class="req">*</span></label>
-                        <input id="e-ci" name="documento_identidad" value="{{ old('documento_identidad') }}" placeholder="7123456" required>
+                        <input id="e-ci" name="documento_identidad" value="{{ old('documento_identidad') }}" placeholder="7123456" inputmode="numeric" pattern="[0-9]*" maxlength="20" data-numeric-only title="Ingrese solo números." required>
                         @error('documento_identidad')<p class="err">{{ $message }}</p>@enderror
                     </div>
                 </div>
                 <div class="row2">
                     <div class="field">
                         <label for="e-nombres">Nombres <span class="req">*</span></label>
-                        <input id="e-nombres" name="nombres" value="{{ old('nombres') }}" placeholder="Gabriel Fernando" required>
+                        <input id="e-nombres" name="nombres" value="{{ old('nombres') }}" placeholder="Gabriel Fernando" maxlength="100" data-letters-only title="Ingrese solo letras y espacios." required>
                         @error('nombres')<p class="err">{{ $message }}</p>@enderror
                     </div>
                     <div class="field">
                         <label for="e-apellidos">Apellidos <span class="req">*</span></label>
-                        <input id="e-apellidos" name="apellidos" value="{{ old('apellidos') }}" placeholder="Romero Silva" required>
+                        <input id="e-apellidos" name="apellidos" value="{{ old('apellidos') }}" placeholder="Romero Silva" maxlength="100" data-letters-only title="Ingrese solo letras y espacios." required>
                         @error('apellidos')<p class="err">{{ $message }}</p>@enderror
                     </div>
                 </div>
@@ -175,7 +175,7 @@
                 </div>
                 <div class="field">
                     <label for="e-correo">Correo institucional</label>
-                    <input id="e-correo" type="email" name="correo_institucional" value="{{ old('correo_institucional') }}" placeholder="estudiante@universidad.edu">
+                    <input id="e-correo" type="email" name="correo_institucional" value="{{ old('correo_institucional') }}" placeholder="estudiante@est.umss.edu" pattern="[^@]+@est\.umss\.edu" title="Use un correo institucional @est.umss.edu.">
                     @error('correo_institucional')<p class="err">{{ $message }}</p>@enderror
                 </div>
                 <div class="field">
@@ -200,6 +200,19 @@
 @push('scripts')
 <script>
     const MODAL = 'modal-estudiante';
+
+    document.querySelectorAll('[data-numeric-only]').forEach(input => {
+        input.addEventListener('input', () => {
+            input.value = input.value.replace(/[^0-9]/g, '').slice(0, input.maxLength);
+        });
+    });
+
+    document.querySelectorAll('[data-letters-only]').forEach(input => {
+        input.addEventListener('input', () => {
+            input.value = input.value.replace(/[^\p{L} ]/gu, '').slice(0, input.maxLength);
+        });
+    });
+
     document.getElementById('btn-nuevo-estudiante').addEventListener('click', () =>
         abrirForm(MODAL, { url: '{{ route('estudiantes.store') }}', method: 'POST', title: 'Registrar estudiante' }));
 

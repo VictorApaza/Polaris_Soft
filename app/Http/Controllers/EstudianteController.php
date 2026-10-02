@@ -63,18 +63,23 @@ class EstudianteController extends Controller
         $id = $actual?->getKey();
 
         $data = $request->validate([
-            'codigo_universitario' => ['required', 'string', 'max:30',
+            'codigo_universitario' => ['required', 'string', 'max:10', 'regex:/^[0-9]{1,10}$/',
                 Rule::unique('estudiante', 'codigo_universitario')->ignore($id, 'id_estudiante')],
-            'documento_identidad' => ['required', 'string', 'max:20',
+            'documento_identidad' => ['required', 'string', 'max:20', 'regex:/^[0-9]+$/',
                 Rule::unique('estudiante', 'documento_identidad')->ignore($id, 'id_estudiante')],
-            'nombres' => ['required', 'string', 'max:100'],
-            'apellidos' => ['required', 'string', 'max:100'],
+            'nombres' => ['required', 'string', 'max:100', 'regex:/^[\p{L} ]+$/u'],
+            'apellidos' => ['required', 'string', 'max:100', 'regex:/^[\p{L} ]+$/u'],
             'carrera' => ['required', 'string', 'max:120'],
-            'correo_institucional' => ['nullable', 'email', 'max:150'],
+            'correo_institucional' => ['nullable', 'email', 'max:150', 'regex:/^[^@\s]+@est\.umss\.edu$/i'],
             'estado' => ['required', Rule::in(['ACTIVO', 'OBSERVADO', 'INACTIVO'])],
         ], [
+            'codigo_universitario.regex' => 'El código universitario debe contener solo números y tener como máximo 10 dígitos.',
             'codigo_universitario.unique' => 'Ya existe un estudiante con ese código.',
+            'documento_identidad.regex' => 'El CI / DNI debe contener solo números.',
             'documento_identidad.unique' => 'Ya existe un estudiante con ese CI / DNI.',
+            'nombres.regex' => 'Los nombres solo pueden contener letras y espacios.',
+            'apellidos.regex' => 'Los apellidos solo pueden contener letras y espacios.',
+            'correo_institucional.regex' => 'El correo del estudiante debe terminar en @est.umss.edu.',
         ]);
 
         $data['estado'] = strtoupper($data['estado']);
