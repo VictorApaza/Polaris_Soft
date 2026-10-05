@@ -27,8 +27,8 @@ Route::middleware('guest')->group(function () {
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
-// --- Inicio: muestra la landing pública para permitir el acceso al home del sistema ---
-Route::view('/', 'welcome')->name('home');
+// --- Inicio: login para invitados y dashboard por rol para usuarios autenticados ---
+Route::get('/', fn () => redirect()->route(auth()->check() ? 'dashboard' : 'login'))->name('home');
 Route::view('/home', 'welcome')->name('welcome');
 Route::get('/dashboard', [DashboardController::class, 'redirigir'])->middleware('auth')->name('dashboard');
 
