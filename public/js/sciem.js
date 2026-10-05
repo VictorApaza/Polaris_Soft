@@ -106,7 +106,31 @@ function abrirForm(id, o = {}) {
     if (s) s.hidden = !!o.ro;
     f.querySelectorAll('.err').forEach(e => { if (!o.keep) e.remove(); });
 
+    d.dataset.modo = (o.ro || o.editing) ? 'edit' : 'nuevo';
+    const btnGuardar = f.querySelector('[data-submit]');
+    if (btnGuardar) btnGuardar.disabled = false;
+
     d.showModal();
+    // Se toma la "foto" inicial después de rellenar el formulario (los scripts de cada página
+    // ajustan algunos campos justo después de abrirForm, por eso se difiere un instante).
+    setTimeout(() => { d._valoresIniciales = valoresFormulario(f); }, 0);
+}
+
+/** Valores actuales de los campos (sin los ocultos que empiezan con "_"). */
+function valoresFormulario(form) {
+    const v = {};
+    [...form.elements].forEach(el => {
+        if (!el.name || el.name[0] === '_' || ['submit', 'button', 'reset'].includes(el.type)) return;
+        v[el.name] = (el.type === 'radio' || el.type === 'checkbox') ? (el.checked ? el.value : '') : (el.value ?? '');
+    });
+    return JSON.stringify(v);
+}
+
+/** true si el usuario cambió algo respecto a lo que tenía al abrir el modal. */
+function formularioModificado(form) {
+    const d = form?.closest('dialog');
+    if (!form || !d || d._valoresIniciales === undefined) return false;
+    return valoresFormulario(form) !== d._valoresIniciales;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -116,18 +140,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (f) {
             f.addEventListener('submit', () => {
                 limpiarEstadoFormulario(f);
+                // Evita el doble clic en "Guardar": se bloquea el botón al enviar.
+                const btn = f.querySelector('[data-submit]');
+                if (btn) setTimeout(() => { btn.disabled = true; }, 0);
             });
         }
 
         d.addEventListener('click', e => {
-            if (e.target === d) {
-                guardarValoresFormulario(f);
-                d.close();
-            }
+            if (e.target !== d) return;
+            // Clic en el fondo oscuro: si hay datos escritos NO se cierra (así no se pierde nada).
+            if (formularioModificado(f)) return;
+            d.close();
         });
 
         d.addEventListener('close', () => {
-            if (d.dataset.closeMode === 'cancel') {
+            // Solo el formulario de "nuevo" conserva lo escrito; editar/ver nunca se guardan.
+            if (d.dataset.closeMode === 'cancel' || d.dataset.modo !== 'nuevo') {
                 limpiarEstadoFormulario(f);
             } else {
                 guardarValoresFormulario(f);

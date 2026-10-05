@@ -11,7 +11,7 @@
     </div>
 
     @if (session('status')) <div class="flash" role="status">{{ session('status') }}</div> @endif
-    @if (empty($carreras))
+    @if ($carreras->isEmpty())
         <div class="flash" role="status">
             No hay carreras registradas. Registre al menos un estudiante con carrera o asigne una carrera a una
             <a href="{{ route('materias.index') }}">asignatura</a> para habilitar este formulario.
@@ -44,7 +44,7 @@
         <select name="ambiente" aria-label="Ambiente" onchange="this.form.submit()">
             <option value="">Todos los ambientes</option>
             @foreach ($ambientes as $a)
-                <option value="{{ $a }}" @selected(request('ambiente') === $a)>{{ $a }}</option>
+                <option value="{{ $a->nombre }}" @selected(request('ambiente') === $a->nombre)>{{ $a->nombre }}</option>
             @endforeach
         </select>
     </form>
