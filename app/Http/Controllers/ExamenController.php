@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Examen;
 use App\Models\Ambiente;
+use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -40,7 +42,11 @@ class ExamenController extends Controller
     {
         $data = $this->validar($request);
 
-        Examen::create($data);
+        try {
+            Examen::create($data);
+        } catch (QueryException $e) {
+            return $this->errorDuplicado();
+        }
 
         return redirect()->route('examenes.index')->with('status', 'Examen registrado correctamente.');
     }
@@ -49,7 +55,11 @@ class ExamenController extends Controller
     {
         $data = $this->validar($request, $examen);
 
-        $examen->update($data);
+        try {
+            $examen->update($data);
+        } catch (QueryException $e) {
+            return $this->errorDuplicado();
+        }
 
         return redirect()->route('examenes.index')->with('status', 'Examen actualizado correctamente.');
     }
@@ -105,6 +115,28 @@ class ExamenController extends Controller
             ]);
         }
 
+        // Un ambiente no puede tener dos exámenes que se crucen en el mismo día y horario.
+        $inicio = Carbon::createFromFormat('Y-m-d H:i', $data['fecha'].' '.$data['hora_inicio']);
+        $fin = $inicio->copy()->addMinutes((int) $data['duracion_min']);
+
+        $choque = Examen::with(['asignatura', 'materia'])
+            ->where('ambiente', $data['ambiente'])
+            ->whereDate('fecha', $data['fecha'])
+            ->when($actual, fn ($q) => $q->where('id', '<>', $actual->id))
+            ->get()
+            ->first(function (Examen $otro) use ($inicio, $fin) {
+                $ini = Carbon::parse($otro->fecha->format('Y-m-d').' '.$otro->hora);
+
+                return $ini < $fin && $ini->copy()->addMinutes((int) $otro->duracion_min) > $inicio;
+            });
+
+        if ($choque) {
+            $nombre = $choque->asignatura->nombre ?? $choque->materia->nombre ?? 'otra asignatura';
+            throw ValidationException::withMessages([
+                'ambiente' => "Ya existe un examen de {$nombre} programado en este ambiente en ese horario ({$choque->hora}).",
+            ]);
+        }
+
         $ambiente = Ambiente::where('nombre', $data['ambiente'])->firstOrFail();
         $data['capacidad'] = $ambiente->capacidad;
 
@@ -123,5 +155,13 @@ class ExamenController extends Controller
             ->orderBy('e.carrera')
             ->orderBy('a.nombre')
             ->get();
+    }
+
+    /** Respaldo por si dos envíos llegan a la vez (doble clic): la restricción única de la BD lo rechaza. */
+    private function errorDuplicado()
+    {
+        return back()->withInput()->withErrors([
+            'asignatura_id' => 'Ya existe un examen para esta asignatura, carrera, fecha y hora de inicio.',
+        ]);
     }
 }
