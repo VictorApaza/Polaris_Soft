@@ -18,7 +18,8 @@ class ExamenController extends Controller
             ->buscar($request->string('buscar')->toString())
             ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->estado))
             ->when($request->filled('ambiente'), fn ($q) => $q->where('ambiente', $request->ambiente))
-            ->orderBy('fecha')->orderBy('hora_inicio')
+            ->orderBy('fecha')
+            ->orderBy('hora_inicio')
             ->paginate(5)
             ->withQueryString();
 
@@ -30,47 +31,133 @@ class ExamenController extends Controller
         $materias = Materia::orderBy('nombre')->get();
         $ambientes = Examen::distinct()->orderBy('ambiente')->pluck('ambiente');
 
-        return view('examenes.index', compact('examenes', 'stats', 'materias', 'ambientes'));
+        return view('examenes.index', compact(
+            'examenes',
+            'stats',
+            'materias',
+            'ambientes'
+        ));
     }
 
     public function store(Request $request)
     {
-        Examen::create($this->validar($request));
+        $datos = $this->validar($request);
 
-        return redirect()->route('examenes.index')->with('status', 'Examen registrado correctamente.');
+        Examen::create($datos);
+
+        return redirect()
+            ->route('examenes.index')
+            ->with('status', 'Examen registrado correctamente.');
     }
 
     public function update(Request $request, Examen $examen)
     {
-        $examen->update($this->validar($request));
+        $datos = $this->validar($request, $examen);
 
-        return redirect()->route('examenes.index')->with('status', 'Examen actualizado correctamente.');
+        $examen->update($datos);
+
+        return redirect()
+            ->route('examenes.index')
+            ->with('status', 'Examen actualizado correctamente.');
     }
 
     public function destroy(Examen $examen)
     {
         $examen->delete();
 
-        return redirect()->route('examenes.index')->with('status', 'Examen eliminado.');
+        return redirect()
+            ->route('examenes.index')
+            ->with('status', 'Examen eliminado.');
     }
 
-    private function validar(Request $request): array
+    private function validar(Request $request, ?Examen $examen = null): array
     {
+        $reglaDuplicado = Rule::unique('examenes')
+            ->where(function ($query) use ($request) {
+                return $query
+                    ->where('materia_id', $request->materia_id)
+                    ->where('fecha', $request->fecha)
+                    ->where('hora_inicio', $request->hora_inicio)
+                    ->where('ambiente', $request->ambiente);
+            });
+
+        // Al editar, ignoramos el registro actual.
+        if ($examen) {
+            $reglaDuplicado = $reglaDuplicado->ignore($examen->id);
+        }
+
         return $request->validate([
-            'materia_id' => ['required', 'exists:materias,id'],
-            'carrera' => ['nullable', 'string', 'max:120', 'regex:'.self::REGEX_ALFABETICO],
-            'fecha' => ['required', 'date'],
-            'hora_inicio' => ['required', 'date_format:H:i'],
-            'duracion_min' => ['required', 'integer', 'min:15', 'max:480'],
-            'ambiente' => ['required', 'string', 'max:100'],
-            'capacidad' => ['required', 'integer', 'min:1', 'max:5000'],
-            'estado' => ['required', Rule::in(array_keys(Examen::ESTADOS))],
-            'normas_admision' => ['nullable', 'string', 'max:1000'],
-            'normas_salida' => ['nullable', 'string', 'max:1000'],
+            'materia_id' => [
+                'required',
+                'exists:materias,id',
+            ],
+
+            'carrera' => [
+                'nullable',
+                'string',
+                'max:120',
+                'regex:' . self::REGEX_ALFABETICO,
+            ],
+
+            'fecha' => [
+                'required',
+                'date',
+            ],
+
+            'hora_inicio' => [
+                'required',
+                'date_format:H:i',
+            ],
+
+            'duracion_min' => [
+                'required',
+                'integer',
+                'min:15',
+                'max:480',
+            ],
+
+            'ambiente' => [
+                'required',
+                'string',
+                'max:100',
+                $reglaDuplicado,
+            ],
+
+            'capacidad' => [
+                'required',
+                'integer',
+                'min:1',
+                'max:5000',
+            ],
+
+            'estado' => [
+                'required',
+                Rule::in(array_keys(Examen::ESTADOS)),
+            ],
+
+            'normas_admision' => [
+                'nullable',
+                'string',
+                'max:1000',
+            ],
+
+            'normas_salida' => [
+                'nullable',
+                'string',
+                'max:1000',
+            ],
+
         ], [
             'materia_id.required' => 'Selecciona una asignatura.',
-            'hora_inicio.date_format' => 'La hora debe tener el formato HH:MM.',
-            'carrera.regex' => 'La carrera solo puede contener letras.',
+
+            'hora_inicio.date_format' =>
+                'La hora debe tener el formato HH:MM.',
+
+            'carrera.regex' =>
+                'La carrera solo puede contener letras.',
+
+            'ambiente.unique' =>
+                'Ya existe un examen de esta asignatura programado para esta fecha, hora y ambiente.',
         ]);
     }
 }
