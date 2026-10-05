@@ -37,6 +37,8 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::resource('estudiantes', EstudianteController::class)->except(['create', 'show', 'edit']);
     Route::get('/estudiantes-importar', [EstudianteController::class, 'importarForm'])->name('estudiantes.importar.form');
     Route::post('/estudiantes-importar', [EstudianteController::class, 'importar'])->name('estudiantes.importar');
+    Route::get('/estudiantes/{estudiante}/asignaciones/create', [AsignacionController::class, 'create'])
+        ->whereNumber('estudiante');
 
     // Materias, docentes y grupos (RQ27)
     Route::resource('materias', MateriaController::class)->only(['index', 'store', 'update', 'destroy']);
