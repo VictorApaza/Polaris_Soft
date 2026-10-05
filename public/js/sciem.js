@@ -5,14 +5,85 @@
  *   - ro: modo solo lectura (oculta el botón de guardar)
  *   - keep: conserva lo que ya hay en los campos (para reabrir tras un error de validación)
  */
+function limpiarEstadoFormulario(form) {
+    if (!form) return;
+
+    const dialogId = form.closest('dialog')?.id || form.id;
+    if (dialogId) {
+        sessionStorage.removeItem('dialog-state:' + dialogId);
+    }
+}
+
+function guardarValoresFormulario(form) {
+    if (!form) return;
+
+    const snapshot = {};
+    [...form.elements].forEach(el => {
+        if (!el.name || el.name[0] === '_') return;
+        if (el.type === 'radio' || el.type === 'checkbox') {
+            snapshot[el.name] = el.checked ? el.value : '';
+            return;
+        }
+        if (el.type !== 'submit' && el.type !== 'button' && el.type !== 'reset') {
+            snapshot[el.name] = el.value ?? '';
+        }
+    });
+
+    const dialogId = form.closest('dialog')?.id || form.id;
+    if (dialogId) {
+        sessionStorage.setItem('dialog-state:' + dialogId, JSON.stringify(snapshot));
+    }
+}
+
+function restaurarValoresFormulario(form) {
+    if (!form) return false;
+
+    const dialogId = form.closest('dialog')?.id || form.id;
+    const raw = dialogId ? sessionStorage.getItem('dialog-state:' + dialogId) : null;
+    if (!raw) return false;
+
+    let snapshot;
+    try {
+        snapshot = JSON.parse(raw);
+    } catch {
+        return false;
+    }
+
+    let restaurado = false;
+    [...form.elements].forEach(el => {
+        if (!el.name || el.name[0] === '_') return;
+        if (!(el.name in snapshot)) return;
+
+        if (el.type === 'radio') {
+            el.checked = String(snapshot[el.name]) === String(el.value);
+            restaurado = true;
+            return;
+        }
+
+        if (el.type === 'checkbox') {
+            el.checked = !!snapshot[el.name];
+            restaurado = true;
+            return;
+        }
+
+        if (el.type !== 'submit' && el.type !== 'button' && el.type !== 'reset') {
+            el.value = snapshot[el.name] ?? '';
+            restaurado = true;
+        }
+    });
+
+    return restaurado;
+}
+
 function abrirForm(id, o = {}) {
     const d = document.getElementById(id);
     const f = d.querySelector('form');
     const values = o.values || {};
+    const debeRestaurar = !o.keep && Object.keys(values).length === 0 && restaurarValoresFormulario(f);
 
     [...f.elements].forEach(el => {
         if (!el.name || el.name[0] === '_' ) return;
-        if (!o.keep) {
+        if (!o.keep && !debeRestaurar) {
             if (el.type === 'radio') {
                 el.checked = (el.name in values) ? String(values[el.name]) === el.value : el.defaultChecked;
             } else if (el.type !== 'submit' && el.type !== 'button') {
@@ -39,8 +110,31 @@ function abrirForm(id, o = {}) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('dialog').forEach(d =>
-        d.addEventListener('click', e => { if (e.target === d) d.close(); }));
+    document.querySelectorAll('dialog').forEach(d => {
+        const f = d.querySelector('form');
+
+        if (f) {
+            f.addEventListener('submit', () => {
+                limpiarEstadoFormulario(f);
+            });
+        }
+
+        d.addEventListener('click', e => {
+            if (e.target === d) {
+                guardarValoresFormulario(f);
+                d.close();
+            }
+        });
+
+        d.addEventListener('close', () => {
+            if (d.dataset.closeMode === 'cancel') {
+                limpiarEstadoFormulario(f);
+            } else {
+                guardarValoresFormulario(f);
+            }
+            delete d.dataset.closeMode;
+        });
+    });
 });
 
 /** Borra, mientras se escribe, cualquier carácter que no sea letra o espacio. Uso: oninput="soloLetras(this)". */

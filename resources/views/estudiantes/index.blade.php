@@ -140,7 +140,7 @@
             <div class="m-head">
                 <span class="ic"><svg class="i"><use href="#i-user-plus"/></svg></span>
                 <div><b data-title>Registrar estudiante</b><small>Datos del padrón académico</small></div>
-                <button type="button" class="icon-btn x" aria-label="Cerrar" onclick="this.closest('dialog').close()"><svg class="i"><use href="#i-x"/></svg></button>
+                <button type="button" class="icon-btn x" aria-label="Cerrar" onclick="this.closest('dialog').dataset.closeMode='cancel'; this.closest('dialog').close();"><svg class="i"><use href="#i-x"/></svg></button>
             </div>
 
             <div class="m-body">
@@ -207,7 +207,7 @@
                            style="background:var(--soft);color:var(--muted)">
                 </div>
 
-                <div class="field">
+                <div class="field" id="e-estado-field">
                     <label>Estado <span class="req">*</span></label>
                     <div class="radios three">
                         @foreach (['ACTIVO' => 'Activo', 'OBSERVADO' => 'Observado', 'INACTIVO' => 'Inactivo'] as $v => $t)
@@ -219,7 +219,7 @@
             </div>
 
             <div class="m-foot">
-                <button type="button" class="btn ghost" onclick="this.closest('dialog').close()">Cancelar</button>
+                <button type="button" class="btn ghost" onclick="this.closest('dialog').dataset.closeMode='cancel'; this.closest('dialog').close();">Cancelar</button>
                 <button type="submit" class="btn" data-submit><svg class="i sm"><use href="#i-check"/></svg> Guardar estudiante</button>
             </div>
         </form>
@@ -235,6 +235,15 @@
     const selCarrera = document.getElementById('e-carrera');
     const inCodigo = document.getElementById('e-codigo');
     const inCorreo = document.getElementById('e-correo');
+    const estadoField = document.getElementById('e-estado-field');
+
+    function configurarEstadoRegistro(esEdicion) {
+        estadoField.hidden = !esEdicion;
+        if (!esEdicion) {
+            const activo = estadoField.querySelector('input[name="estado"][value="ACTIVO"]');
+            if (activo) activo.checked = true;
+        }
+    }
 
     // Rellena el desplegable de carrera según la facultad elegida.
     function cargarCarreras(carreraSeleccionada) {
@@ -252,6 +261,7 @@
 
     document.getElementById('btn-nuevo-estudiante').addEventListener('click', () => {
         abrirForm(MODAL, { url: '{{ route('estudiantes.store') }}', method: 'POST', title: 'Registrar estudiante' });
+        configurarEstadoRegistro(false);
         cargarCarreras(null);
         actualizarCorreo();
     });
@@ -263,6 +273,7 @@
             url: b.dataset.url, method: 'PUT', editing: b.dataset.id, ro: ver,
             values, title: ver ? 'Detalle del estudiante' : 'Editar estudiante',
         });
+        configurarEstadoRegistro(true);
         cargarCarreras(values.carrera || null);
         actualizarCorreo();
     }));
@@ -274,6 +285,7 @@
             method: '{{ old('_editing') ? 'PUT' : 'POST' }}',
             title: '{{ old('_editing') ? 'Editar estudiante' : 'Registrar estudiante' }}',
         });
+        configurarEstadoRegistro({{ old('_editing') ? 'true' : 'false' }});
         cargarCarreras('{{ old('carrera') }}');
         actualizarCorreo();
     @endif

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Estudiante;
 use App\Models\Materia;
+use App\Support\Catalogo;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -14,7 +16,12 @@ class MateriaController extends Controller
     public function index()
     {
         $materias = Materia::withCount('grupos')->orderBy('nombre')->get();
-        return view('materias.index', compact('materias'));
+        $carreras = collect(Catalogo::FACULTADES)->flatten()
+            ->merge(Estudiante::whereNotNull('carrera')->distinct()->pluck('carrera'))
+            ->merge(Materia::whereNotNull('carrera')->distinct()->pluck('carrera'))
+            ->filter()->unique()->sort()->values();
+
+        return view('materias.index', compact('materias', 'carreras'));
     }
 
     public function store(Request $request)
@@ -42,9 +49,11 @@ class MateriaController extends Controller
         return $request->validate([
             'nombre' => ['required', 'string', 'max:150', 'regex:'.self::REGEX_ALFABETICO],
             'sigla' => ['required', 'string', 'max:20', Rule::unique('materias', 'sigla')->ignore($actual?->id)],
+            'carrera' => ['required', 'string', 'max:120'],
         ], [
             'nombre.regex' => 'El nombre de la materia solo puede contener letras.',
             'sigla.required' => 'La sigla es obligatoria.',
+            'carrera.required' => 'Selecciona la carrera a la que pertenece la asignatura.',
         ]);
     }
 }

@@ -11,6 +11,12 @@
     </div>
 
     @if (session('status')) <div class="flash" role="status">{{ session('status') }}</div> @endif
+    @if (empty($carreras))
+        <div class="flash" role="status">
+            No hay carreras registradas. Registre al menos un estudiante con carrera o asigne una carrera a una
+            <a href="{{ route('materias.index') }}">asignatura</a> para habilitar este formulario.
+        </div>
+    @endif
 
     <section class="hero">
         <div>
@@ -57,7 +63,7 @@
                 @forelse ($examenes as $e)
                     @php
                         $payload = [
-                            'materia_id' => $e->materia_id, 'carrera' => $e->carrera,
+                            'asignatura_id' => $e->asignatura_id, 'carrera' => $e->carrera,
                             'fecha' => $e->fecha->format('Y-m-d'), 'hora_inicio' => $e->hora,
                             'duracion_min' => $e->duracion_min, 'ambiente' => $e->ambiente,
                             'capacidad' => $e->capacidad, 'estado' => $e->estado,
@@ -68,8 +74,8 @@
                         $pct = $e->capacidad > 0 ? min(100, round($asig * 100 / $e->capacidad)) : 0;
                     @endphp
                     <tr>
-                        <td class="strong">{{ $e->materia->nombre ?? '—' }}
-                            <span class="sub">{{ $e->materia?->sigla }}{{ $e->carrera ? ' · '.$e->carrera : '' }}</span></td>
+                        <td class="strong">{{ $e->asignatura->nombre ?? $e->materia->nombre ?? '—' }}
+                            <span class="sub">{{ $e->asignatura?->codigo ?? $e->materia?->sigla }}{{ $e->carrera ? ' · '.$e->carrera : '' }}</span></td>
                         <td class="num">{{ $e->fecha->format('d/m/Y') }}</td>
                         <td class="num">{{ $e->hora }}</td>
                         <td class="num">{{ $e->duracion_min }} min</td>
@@ -140,32 +146,33 @@
             <div class="m-head">
                 <span class="ic"><svg class="i"><use href="#i-exams"/></svg></span>
                 <div><b data-title>Registrar examen</b><small>Fecha / Programación de evaluación masiva</small></div>
-                <button type="button" class="icon-btn x" aria-label="Cerrar" onclick="this.closest('dialog').close()"><svg class="i"><use href="#i-x"/></svg></button>
+                <button type="button" class="icon-btn x" aria-label="Cerrar" onclick="this.closest('dialog').dataset.closeMode='cancel'; this.closest('dialog').close();"><svg class="i"><use href="#i-x"/></svg></button>
             </div>
 
             <div class="m-body">
                 <div class="row2">
                     <div class="field">
-                        <label for="x-materia">Asignatura <span class="req">*</span></label>
-                        <select id="x-materia" name="materia_id" required>
-                            <option value="">Seleccione asignatura…</option>
-                            @foreach ($materias as $m)
-                                <option value="{{ $m->id }}" @selected((string) old('materia_id') === (string) $m->id)>{{ $m->nombre }}{{ $m->sigla ? ' ('.$m->sigla.')' : '' }}</option>
+                        <label for="x-carrera">Carrera <span class="req">*</span></label>
+                        <select id="x-carrera" name="carrera" required>
+                            <option value="">Seleccione carrera…</option>
+                            @foreach ($carreras as $carrera)
+                                <option value="{{ $carrera }}" @selected(old('carrera') === $carrera)>{{ $carrera }}</option>
                             @endforeach
                         </select>
-                        @error('materia_id')<p class="err">{{ $message }}</p>@enderror
+                        @error('carrera')<p class="err">{{ $message }}</p>@enderror
                     </div>
                     <div class="field">
-                        <label for="x-carrera">Carrera <i>Opcional</i></label>
-                        <input id="x-carrera" name="carrera" value="{{ old('carrera') }}" placeholder="Ingeniería de Sistemas"
-                               pattern="[\p{L}\s]+" title="Solo letras" oninput="soloLetras(this)">
-                        @error('carrera')<p class="err">{{ $message }}</p>@enderror
+                        <label for="x-asignatura">Asignatura <span class="req">*</span></label>
+                        <select id="x-asignatura" name="asignatura_id" required>
+                            <option value="">Seleccione primero una carrera…</option>
+                        </select>
+                        @error('asignatura_id')<p class="err">{{ $message }}</p>@enderror
                     </div>
                 </div>
                 <div class="row2">
                     <div class="field">
                         <label for="x-fecha">Fecha <span class="req">*</span></label>
-                        <input id="x-fecha" type="date" name="fecha" value="{{ old('fecha') }}" required>
+                        <input id="x-fecha" type="date" name="fecha" value="{{ old('fecha') }}" min="{{ now()->toDateString() }}" required>
                         @error('fecha')<p class="err">{{ $message }}</p>@enderror
                     </div>
                     <div class="field">
@@ -182,14 +189,19 @@
                     </div>
                     <div class="field">
                         <label for="x-amb">Ambiente / Aula <span class="req">*</span></label>
-                        <input id="x-amb" name="ambiente" value="{{ old('ambiente') }}" placeholder="Edificio Central 102A" required>
+                        <select id="x-amb" name="ambiente" required>
+                            <option value="">Seleccione un ambiente…</option>
+                            @foreach ($ambientes as $ambiente)
+                                <option value="{{ $ambiente->nombre }}" data-capacidad="{{ $ambiente->capacidad }}" @selected(old('ambiente') === $ambiente->nombre)>{{ $ambiente->nombre }}</option>
+                            @endforeach
+                        </select>
                         @error('ambiente')<p class="err">{{ $message }}</p>@enderror
                     </div>
                 </div>
                 <div class="row2">
                     <div class="field">
                         <label for="x-cap">Capacidad del ambiente <span class="req">*</span></label>
-                        <input id="x-cap" type="number" name="capacidad" min="1" max="5000" value="{{ old('capacidad') }}" placeholder="120" required>
+                        <input id="x-cap" type="number" name="capacidad" min="1" max="5000" value="{{ old('capacidad') }}" placeholder="Se completa al seleccionar un ambiente…" readonly required>
                         @error('capacidad')<p class="err">{{ $message }}</p>@enderror
                     </div>
                     <div class="field">
@@ -215,7 +227,7 @@
             </div>
 
             <div class="m-foot">
-                <button type="button" class="btn ghost" onclick="this.closest('dialog').close()">Cancelar</button>
+                <button type="button" class="btn ghost" onclick="this.closest('dialog').dataset.closeMode='cancel'; this.closest('dialog').close();">Cancelar</button>
                 <button type="submit" class="btn" data-submit><svg class="i sm"><use href="#i-check"/></svg> Guardar examen</button>
             </div>
         </form>
@@ -225,8 +237,63 @@
 @push('scripts')
 <script>
     const MODAL = 'modal-examen';
-    document.getElementById('btn-nuevo-examen').addEventListener('click', () =>
-        abrirForm(MODAL, { url: '{{ route('examenes.store') }}', method: 'POST', title: 'Registrar examen' }));
+    const selCarrera = document.getElementById('x-carrera');
+    const selAsignatura = document.getElementById('x-asignatura');
+    const selAmbiente = document.getElementById('x-amb');
+    const inCapacidad = document.getElementById('x-cap');
+    const asignaturas = @json($asignaturas);
+
+    function actualizarCapacidad() {
+        inCapacidad.value = selAmbiente.selectedOptions[0]?.dataset.capacidad || '';
+    }
+
+    selAmbiente.addEventListener('change', actualizarCapacidad);
+
+    function filtrarAsignaturas(asignaturaId = selAsignatura.value) {
+        const carrera = selCarrera.value;
+        const disponibles = asignaturas.filter(asignatura =>
+            carrera !== '' && (!asignatura.carrera || asignatura.carrera === carrera)
+        );
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = !carrera
+            ? 'Seleccione primero una carrera…'
+            : disponibles.length
+                ? 'Seleccione asignatura…'
+                : 'No hay asignaturas para esta carrera';
+
+        selAsignatura.replaceChildren(placeholder);
+        disponibles.forEach(asignatura => {
+            const option = document.createElement('option');
+            option.value = asignatura.id;
+            option.textContent = `${asignatura.codigo} — ${asignatura.nombre}`;
+            selAsignatura.append(option);
+        });
+        selAsignatura.disabled = carrera === '' || disponibles.length === 0;
+        selAsignatura.value = disponibles.some(asignatura => asignatura.id === String(asignaturaId))
+            ? String(asignaturaId)
+            : '';
+    }
+
+    function asignaturaGuardada() {
+        try {
+            const estado = JSON.parse(sessionStorage.getItem('dialog-state:' + MODAL) || '{}');
+            return estado.asignatura_id || '';
+        } catch {
+            return '';
+        }
+    }
+
+    selCarrera.addEventListener('change', () => {
+        filtrarAsignaturas('');
+    });
+
+    document.getElementById('btn-nuevo-examen').addEventListener('click', () => {
+        const asignaturaGuardadaId = asignaturaGuardada();
+        abrirForm(MODAL, { url: '{{ route('examenes.store') }}', method: 'POST', title: 'Registrar examen' });
+        filtrarAsignaturas(asignaturaGuardadaId);
+        actualizarCapacidad();
+    });
 
     document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => {
         const ver = b.dataset.mode === 'ver';
@@ -234,6 +301,8 @@
             url: b.dataset.url, method: 'PUT', editing: b.dataset.id, ro: ver,
             values: JSON.parse(b.dataset.edit), title: ver ? 'Detalle del examen' : 'Editar examen',
         });
+        filtrarAsignaturas(JSON.parse(b.dataset.edit).asignatura_id);
+        actualizarCapacidad();
     }));
 
     @if ($errors->any() && old('_form') === 'examen')
@@ -243,6 +312,8 @@
             method: '{{ old('_editing') ? 'PUT' : 'POST' }}',
             title: '{{ old('_editing') ? 'Editar examen' : 'Registrar examen' }}',
         });
+        filtrarAsignaturas('{{ old('asignatura_id') }}');
+        actualizarCapacidad();
     @endif
 </script>
 @endpush

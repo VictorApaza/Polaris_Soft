@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AsignacionController;
+use App\Http\Controllers\AmbienteController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocenteController;
@@ -26,8 +27,9 @@ Route::middleware('guest')->group(function () {
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
-// --- Inicio: siempre pasa por el login / dashboard según rol ---
-Route::redirect('/', '/dashboard');
+// --- Inicio: muestra la landing pública para permitir el acceso al home del sistema ---
+Route::view('/', 'welcome')->name('home');
+Route::view('/home', 'welcome')->name('welcome');
 Route::get('/dashboard', [DashboardController::class, 'redirigir'])->middleware('auth')->name('dashboard');
 
 // --- Administrador ---
@@ -42,6 +44,7 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::resource('materias', MateriaController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('docentes', DocenteController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('grupos', GrupoController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::resource('ambientes', AmbienteController::class)->only(['index', 'store', 'update', 'destroy']);
 
     // Asignar materia + grupo + docente a un estudiante (RQ27)
     Route::get('/estudiantes/{estudiante}/asignaciones', [AsignacionController::class, 'create'])->name('asignaciones.create');

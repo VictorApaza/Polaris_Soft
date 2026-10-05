@@ -66,13 +66,13 @@
                 <tbody>
                 @forelse ($proximos as $e)
                     <tr>
-                        <td class="strong"><span class="with-dot">{{ $e->materia->nombre ?? '—' }}</span>
-                            <span class="sub" style="margin-left:16px">{{ $e->carrera }}{{ $e->materia?->sigla ? ' · Código '.$e->materia->sigla : '' }}</span></td>
+                        <td class="strong"><span class="with-dot">{{ $e->asignatura->nombre ?? $e->materia->nombre ?? '—' }}</span>
+                            <span class="sub" style="margin-left:16px">{{ $e->carrera }}{{ $e->asignatura?->codigo ? ' · Código '.$e->asignatura->codigo : ($e->materia?->sigla ? ' · Código '.$e->materia->sigla : '') }}</span></td>
                         <td class="num">{{ $e->fecha->format('d/m/Y') }}</td>
                         <td class="num">{{ $e->hora }}</td>
                         <td><span class="place"><svg class="i sm"><use href="#i-building"/></svg>{{ $e->ambiente }}</span></td>
                         <td><span class="badge {{ $e->estado }}">{{ \App\Models\Examen::ESTADOS[$e->estado] ?? $e->estado }}</span></td>
-                        <td style="text-align:right"><a class="link-btn" href="{{ route('examenes.index', ['buscar' => $e->materia->nombre ?? '']) }}">Detalle ›</a></td>
+                        <td style="text-align:right"><a class="link-btn" href="{{ route('examenes.index', ['buscar' => $e->asignatura->nombre ?? $e->materia->nombre ?? '']) }}">Detalle ›</a></td>
                     </tr>
                 @empty
                     <tr><td colspan="6" class="empty">No hay exámenes programados. <a href="{{ route('examenes.index') }}">Registrar un examen</a></td></tr>

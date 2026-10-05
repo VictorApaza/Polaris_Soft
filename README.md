@@ -27,6 +27,7 @@ Usuarios de prueba (contraseña `password123`):
 
 - `resources/views/layouts/app.blade.php`: sidebar + topbar (el menú depende del rol).
 - `auth/login`, `admin/dashboard`, `estudiantes/index`, `examenes/index`, `usuarios/index`: cada pantalla del Figma (los modales de "Registrar…" están dentro de cada vista).
+- El catálogo de ambientes y capacidades se administra desde `ambientes/index` y alimenta el formulario de registro de exámenes.
 - Rutas en `routes/web.php`; módulos de gestión protegidos con `role:administrador`.
 
 ---

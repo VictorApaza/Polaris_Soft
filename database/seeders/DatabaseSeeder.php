@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Asignacion;
+use App\Models\Ambiente;
 use App\Models\Docente;
 use App\Models\Estudiante;
 use App\Models\Examen;
@@ -20,6 +21,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(AmbienteSeeder::class);
+
         // ---- Usuarios (uno por rol + un inactivo) ----
         foreach ([
             ['Carlos', 'Choque', 'Licenciado(a)', 'carlos.choque@sciem.edu', 'administrador', 'activo'],

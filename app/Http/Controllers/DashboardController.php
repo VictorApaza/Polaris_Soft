@@ -28,7 +28,7 @@ class DashboardController extends Controller
             'examenes' => Examen::where('estado', '<>', 'finalizado')->count(),
         ];
 
-        $proximos = Examen::with('materia')
+        $proximos = Examen::with(['materia', 'asignatura'])
             ->where('estado', '<>', 'finalizado')
             ->whereDate('fecha', '>=', today())
             ->orderBy('fecha')->orderBy('hora_inicio')

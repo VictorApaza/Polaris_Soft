@@ -34,6 +34,8 @@
                     <svg class="i"><use href="#i-students"/></svg> Estudiantes</a>
                 <a href="{{ route('examenes.index') }}" @class(['active' => request()->routeIs('examenes.*')])>
                     <svg class="i"><use href="#i-exams"/></svg> Exámenes</a>
+                <a href="{{ route('ambientes.index') }}" @class(['active' => request()->routeIs('ambientes.*')])>
+                    <svg class="i"><use href="#i-building"/></svg> Ambientes</a>
                 <a href="{{ route('materias.index') }}" @class(['active' => request()->routeIs('materias.*')])>
                     <svg class="i"><use href="#i-exams"/></svg> Materias</a>
                 <a href="{{ route('docentes.index') }}" @class(['active' => request()->routeIs('docentes.*')])>

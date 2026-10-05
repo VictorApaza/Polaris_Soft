@@ -54,7 +54,10 @@ class EstudianteController extends Controller
 
     public function store(Request $request)
     {
-        Estudiante::create($this->validar($request));
+        $data = $this->validar($request);
+        $data['estado'] = 'ACTIVO';
+
+        Estudiante::create($data);
 
         return redirect()->route('estudiantes.index')->with('status', 'Estudiante registrado correctamente.');
     }

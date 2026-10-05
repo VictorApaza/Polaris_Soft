@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Materia extends Model
 {
-    protected $fillable = ['nombre', 'sigla'];
+    protected $fillable = ['nombre', 'sigla', 'carrera'];
 
     public function grupos()
     {
