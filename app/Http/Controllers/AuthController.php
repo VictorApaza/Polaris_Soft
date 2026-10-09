@@ -107,4 +107,44 @@ class AuthController extends Controller
     {
         return Str::lower($request->input('email')).'|'.$request->ip();
     }
+
+    // conexion para postman
+    public function loginApi(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required'],
+        ]);
+
+        $usuario = User::where('email', $credentials['email'])->first();
+
+        if (
+            ! $usuario ||
+            $usuario->estado !== 'activo' ||
+            ! Auth::validate($credentials)
+        ) {
+            return response()->json([
+                'mensaje' => 'Credenciales incorrectas o cuenta inactiva.',
+            ], 401);
+        }
+
+        if (! in_array($usuario->rol, ['administrador', 'docente'], true)) {
+            return response()->json([
+                'mensaje' => 'No tienes permiso para acceder a esta API.',
+            ], 403);
+        }
+
+        $token = $usuario->createToken('postman')->plainTextToken;
+
+        return response()->json([
+            'mensaje' => 'Autenticación correcta.',
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'usuario' => [
+                'id' => $usuario->id,
+                'nombre' => $usuario->name,
+                'rol' => $usuario->rol,
+            ],
+        ]);
+    }
 }

@@ -278,4 +278,95 @@ class EstudianteController extends Controller
 
         return $filas;
     }
+
+    
+
+public function vistaIngreso()
+{
+    return view('ingreso.index');
+}
+
+public function verificarIngreso(Request $request)
+{
+    $request->validate([
+        'modo' => ['required', 'in:codigo,ci'],
+        'codigo_universitario' => [
+            'required_if:modo,codigo',
+            'nullable',
+            'regex:/^[0-9]{9}$/',
+        ],
+        'ci' => [
+            'required_if:modo,ci',
+            'nullable',
+            'regex:/^[0-9]{5,10}$/',
+        ],
+        'ci_complemento' => [
+            'nullable',
+            'regex:/^[A-Za-z0-9]{1,2}$/',
+        ],
+    ], [
+        'modo.required' => 'Selecciona un método de búsqueda.',
+        'modo.in' => 'El método de búsqueda no es válido.',
+        'codigo_universitario.required_if' =>
+            'Introduce el código universitario.',
+        'codigo_universitario.regex' =>
+            'El código universitario debe tener 9 dígitos.',
+        'ci.required_if' => 'Introduce la cédula de identidad.',
+        'ci.regex' =>
+            'El C.I. debe contener entre 5 y 10 dígitos.',
+        'ci_complemento.regex' =>
+            'El complemento debe tener entre 1 y 2 caracteres alfanuméricos.',
+    ]);
+
+    if ($request->modo === 'codigo') {
+        $estudiante = \App\Models\Estudiante::where(
+            'codigo_universitario',
+            trim($request->codigo_universitario)
+        )->first();
+    } else {
+        $ci = trim($request->ci);
+        $complemento = strtoupper(
+            trim($request->ci_complemento ?? '')
+        );
+
+        $consulta = \App\Models\Estudiante::where(
+            'documento_identidad',
+            $ci
+        );
+
+        if ($complemento === '') {
+            $consulta->where(function ($query) {
+                $query->whereNull('ci_complemento')
+                      ->orWhere('ci_complemento', '');
+            });
+        } else {
+            $consulta->where('ci_complemento', $complemento);
+        }
+
+        $estudiante = $consulta->first();
+    }
+
+    if (!$estudiante) {
+        return response()->json([
+            'encontrado' => false,
+            'mensaje' => 'No se encontró un estudiante con los datos proporcionados.',
+        ], 404);
+    }
+
+    return response()->json([
+        'encontrado' => true,
+        'mensaje' => 'Estudiante encontrado correctamente.',
+        'estudiante' => [
+            'id_estudiante' => $estudiante->id_estudiante,
+            'nombres' => $estudiante->nombres,
+            'apellidos' => $estudiante->apellidos,
+            'codigo_universitario' => $estudiante->codigo_universitario,
+            'documento_identidad' => $estudiante->documento_identidad,
+            'ci_complemento' => $estudiante->ci_complemento,
+            'facultad' => $estudiante->facultad,
+            'carrera' => $estudiante->carrera,
+            'estado' => $estudiante->estado,
+        ],
+    ]);
+}
 }

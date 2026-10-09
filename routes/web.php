@@ -70,3 +70,20 @@ Route::middleware(['auth', 'role:docente'])->group(function () {
 Route::middleware(['auth', 'role:control'])->group(function () {
     Route::get('/control/dashboard', fn () => view('control.dashboard'));
 });
+
+// --- Verificar ci docente y administrador ---
+// --- Administrador y Docente ---
+
+
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/control-ingreso', [
+        EstudianteController::class,
+        'vistaIngreso'
+    ])->name('ingreso.index');
+
+    Route::post('/control-ingreso/verificar', [
+        EstudianteController::class,
+        'verificarIngreso'
+    ])->name('ingreso.verificar');
+});
