@@ -11,6 +11,7 @@ use App\Http\Controllers\GrupoController;
 use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\VerificacionController;
 use Illuminate\Support\Facades\Route;
 
 // --- Login / Logout ---
@@ -67,6 +68,10 @@ Route::middleware(['auth', 'role:docente'])->group(function () {
 });
 
 // --- Personal de control ---
-Route::middleware(['auth', 'role:control'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/control/dashboard', fn () => view('control.dashboard'));
+
+    Route::get('/control/verificacion', [VerificacionController::class, 'index'])->name('verificacion.index');
+    Route::post('/control/verificacion/verificar', [VerificacionController::class, 'verificar'])->name('verificacion.verificar');
+    Route::post('/control/verificacion/ingreso', [VerificacionController::class, 'ingreso'])->name('verificacion.ingreso');
 });

@@ -45,6 +45,11 @@
                 <a href="{{ route('usuarios.index') }}" @class(['active' => request()->routeIs('usuarios.*')])>
                     <svg class="i"><use href="#i-users"/></svg> Usuarios</a>
             @endif
+
+            @if ($u)
+                <a href="{{ route('verificacion.index') }}" @class(['active' => request()->routeIs('verificacion.*')])>
+                    <svg class="i"><use href="#i-verify"/></svg> Control de verificacion</a>
+            @endif
         </nav>
 
         <div class="side-foot">

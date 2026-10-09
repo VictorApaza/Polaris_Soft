@@ -14,4 +14,8 @@
         <div><b>Bienvenido, {{ auth()->user()->name }}</b>
             <small>Este módulo estará disponible en los próximos sprints.</small></div>
     </div>
+
+    <div class="actions" style="margin-top: 1rem;">
+        <a href="{{ route('verificacion.index') }}" class="btn btn-primary">Ir a verificación de ingreso</a>
+    </div>
 @endsection
