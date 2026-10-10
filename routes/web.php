@@ -11,6 +11,7 @@ use App\Http\Controllers\GrupoController;
 use App\Http\Controllers\HabilitacionController;
 use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\TransparenciaIngresoController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -93,4 +94,12 @@ Route::middleware(['auth'])->group(function () {
         EstudianteController::class,
         'verificarIngreso'
     ])->name('ingreso.verificar');
+});
+
+// --- Transparencia de ingreso (RQ8) ---
+// Bitácora inmutable de autorizaciones: auditoría en tiempo real (solo lectura) y registro de la autorización.
+Route::middleware(['auth', 'role:administrador,control'])->group(function () {
+    Route::get('/transparencia', [TransparenciaIngresoController::class, 'index'])->name('transparencia.index');
+    Route::get('/transparencia/datos', [TransparenciaIngresoController::class, 'datos'])->name('transparencia.datos');
+    Route::post('/transparencia/autorizar', [TransparenciaIngresoController::class, 'registrar'])->name('transparencia.registrar');
 });
