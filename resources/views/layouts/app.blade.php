@@ -45,6 +45,10 @@
                 <a href="{{ route('usuarios.index') }}" @class(['active' => request()->routeIs('usuarios.*')])>
                     <svg class="i"><use href="#i-users"/></svg> Usuarios</a>
             @endif
+            @if ($es('administrador', 'control'))
+                <a href="{{ route('transparencia.index') }}" @class(['active' => request()->routeIs('transparencia.*')])>
+                    <svg class="i"><use href="#i-shield"/></svg> Transparencia</a>
+            @endif
         </nav>
 
         <div class="side-foot">
