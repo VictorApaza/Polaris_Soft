@@ -90,6 +90,8 @@
                                 <button type="button" class="icon-btn" title="Ver" aria-label="Ver"
                                         data-edit="{{ json_encode($payload) }}" data-url="{{ $url }}" data-id="{{ $e->id }}" data-mode="ver">
                                     <svg class="i"><use href="#i-eye"/></svg></button>
+                                <a class="icon-btn" href="{{ route('habilitaciones.index', $e) }}" title="Estudiantes habilitados" aria-label="Estudiantes habilitados">
+                                    <svg class="i"><use href="#i-students"/></svg></a>
                                 <button type="button" class="icon-btn" title="Editar" aria-label="Editar"
                                         data-edit="{{ json_encode($payload) }}" data-url="{{ $url }}" data-id="{{ $e->id }}" @disabled($e->estado === 'finalizado')>
                                     <svg class="i"><use href="#i-edit"/></svg></button>
