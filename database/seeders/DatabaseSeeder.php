@@ -9,6 +9,7 @@ use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Grupo;
 use App\Models\Materia;
+use App\Models\MotivoInhabilitacion;
 use App\Models\User;
 use App\Support\Catalogo;
 use Illuminate\Database\Seeder;
@@ -22,6 +23,17 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(AmbienteSeeder::class);
+
+        // ---- Catálogo de causas de inhabilitación (RQ4) ----
+        foreach ([
+            'Deuda económica pendiente',
+            'Documentación incompleta',
+            'Suspensión disciplinaria',
+            'Requisito académico no cumplido',
+            'Otro',
+        ] as $descripcion) {
+            MotivoInhabilitacion::firstOrCreate(['descripcion' => $descripcion]);
+        }
 
         // ---- Usuarios (uno por rol + un inactivo) ----
         foreach ([
@@ -60,6 +72,10 @@ class DatabaseSeeder extends Seeder
                 ['materia_id' => $materia->id, 'nombre' => 'Grupo A'],
                 ['docente_id' => $docentes[$i % $docentes->count()]->id]
             );
+            Grupo::firstOrCreate(
+                ['materia_id' => $materia->id, 'nombre' => 'Grupo B'],
+                ['docente_id' => $docentes[($i + 1) % $docentes->count()]->id]
+            );
             $materia->carrera_demo = $m[2];
 
             return $materia;
@@ -90,9 +106,11 @@ class DatabaseSeeder extends Seeder
             // Cada estudiante queda asignado a 2 materias (alimenta "Capacidad / Asign.")
             foreach ([$i % 6, ($i + 2) % 6] as $k) {
                 $materia = $materias[$k];
+                // Reparte a los estudiantes entre Grupo A y Grupo B de cada materia.
+                $grupo = $materia->grupos()->orderBy('nombre')->get()[intdiv($i, 2) % 2];
                 Asignacion::firstOrCreate(
                     ['estudiante_id' => $est->getKey(), 'materia_id' => $materia->id],
-                    ['grupo_id' => $materia->grupos()->first()->id, 'docente_id' => $materia->grupos()->first()->docente_id]
+                    ['grupo_id' => $grupo->id, 'docente_id' => $grupo->docente_id]
                 );
             }
         }

@@ -8,6 +8,7 @@ use App\Http\Controllers\DocenteController;
 use App\Http\Controllers\EstudianteController;
 use App\Http\Controllers\ExamenController;
 use App\Http\Controllers\GrupoController;
+use App\Http\Controllers\HabilitacionController;
 use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\UsuarioController;
@@ -54,6 +55,12 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::resource('examenes', ExamenController::class)
         ->parameters(['examenes' => 'examen'])
         ->except(['create', 'show', 'edit']);
+
+    // Estudiantes habilitados / inhabilitados por examen (RQ3 + RQ4)
+    Route::get('/examenes/{examen}/habilitados', [HabilitacionController::class, 'index'])->name('habilitaciones.index');
+    Route::post('/examenes/{examen}/habilitados', [HabilitacionController::class, 'habilitarMasiva'])->name('habilitaciones.masiva');
+    Route::post('/examenes/{examen}/habilitados/{estudiante}/inhabilitar', [HabilitacionController::class, 'inhabilitar'])->name('habilitaciones.inhabilitar');
+    Route::delete('/examenes/{examen}/habilitados/{estudiante}', [HabilitacionController::class, 'quitar'])->name('habilitaciones.quitar');
 
     Route::resource('usuarios', UsuarioController::class)
         ->parameters(['usuarios' => 'usuario'])
