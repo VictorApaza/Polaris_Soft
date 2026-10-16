@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/sciem.css') }}">
+    @stack('styles')
 </head>
 <body>
 @include('partials.icons')
@@ -30,7 +31,7 @@
             <a href="{{ url('/dashboard') }}" @class(['active' => request()->is('*dashboard*')])>
                 <svg class="i"><use href="#i-dashboard"/></svg> Dashboard</a>
             @if ($es('administrador'))
-                <a href="{{ route('estudiantes.index') }}" @class(['active' => request()->routeIs('estudiantes.*')])>
+                <a href="{{ route('estudiantes.index') }}" @class(['active' => request()->routeIs('estudiantes.*', 'asignaciones.*')])>
                     <svg class="i"><use href="#i-students"/></svg> Estudiantes</a>
                 <a href="{{ route('examenes.index') }}" @class(['active' => request()->routeIs('examenes.*')])>
                     <svg class="i"><use href="#i-exams"/></svg> Exámenes</a>
