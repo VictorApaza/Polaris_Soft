@@ -14,7 +14,8 @@ class CheckRole
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (!$request->user() || !in_array($request->user()->rol, $roles)) {
+        if (! $request->user() || $request->user()->estado !== 'activo'
+            || ! in_array($request->user()->rol, $roles, true)) {
             abort(403, 'No tienes permiso para acceder a esta sección.');
         }
 

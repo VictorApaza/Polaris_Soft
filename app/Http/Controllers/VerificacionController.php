@@ -11,7 +11,6 @@ use App\Models\Verificacion;
 use App\Services\QrEstudianteService;
 use App\Services\TransparenciaIngresoService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -20,7 +19,7 @@ class VerificacionController extends Controller
 {
     public function index()
     {
-        $examenes = Examen::with('materia')
+        $examenes = Examen::with(['materia', 'asignatura'])
             ->orderBy('fecha')
             ->orderBy('hora_inicio')
             ->get();
@@ -230,20 +229,13 @@ class VerificacionController extends Controller
             ], 409);
         }
 
-        try {
-            $registro = $servicio->registrar(
-                $estudiante,
-                $examen,
-                $request->user(),
-                $data['metodo'] ?? 'CODIGO_UNIV',
-                $request
-            );
-        } catch (QueryException $e) {
-            // Índice único (estudiante, examen): otro clic llegó primero.
-            return response()->json([
-                'mensaje' => 'El estudiante ya registró ingreso para este examen.',
-            ], 409);
-        }
+        $registro = $servicio->registrar(
+            $estudiante,
+            $examen,
+            $request->user(),
+            $data['metodo'] ?? 'CODIGO_UNIV',
+            $request
+        );
 
         return response()->json([
             'mensaje' => 'Ingreso registrado correctamente.',

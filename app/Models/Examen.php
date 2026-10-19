@@ -28,6 +28,13 @@ class Examen extends Model
         return $this->belongsTo(Asignatura::class, 'asignatura_id', 'id_asignatura');
     }
 
+    public function materiaDeAsignacion(): ?Materia
+    {
+        return $this->materia ?? ($this->asignatura
+            ? Materia::where('sigla', $this->asignatura->codigo)->first()
+            : null);
+    }
+
     /** Hora en formato HH:MM (la columna time devuelve HH:MM:SS). */
     public function getHoraAttribute(): string
     {
@@ -50,12 +57,12 @@ class Examen extends Model
     {
         return $q->when($texto, fn ($q) => $q->where(function ($w) use ($texto) {
             $w->where('carrera', 'like', "%{$texto}%")
-              ->orWhereHas('asignatura', fn ($a) => $a
-                  ->where('nombre', 'like', "%{$texto}%")
-                  ->orWhere('codigo', 'like', "%{$texto}%"))
-              ->orWhereHas('materia', fn ($m) => $m
-                  ->where('nombre', 'like', "%{$texto}%")
-                  ->orWhere('sigla', 'like', "%{$texto}%"));
+                ->orWhereHas('asignatura', fn ($a) => $a
+                    ->where('nombre', 'like', "%{$texto}%")
+                    ->orWhere('codigo', 'like', "%{$texto}%"))
+                ->orWhereHas('materia', fn ($m) => $m
+                    ->where('nombre', 'like', "%{$texto}%")
+                    ->orWhere('sigla', 'like', "%{$texto}%"));
         }));
     }
 }

@@ -209,7 +209,7 @@
                     <option value="">Selecciona un examen…</option>
                     @foreach ($examenes as $ex)
                         <option value="{{ $ex->id }}" data-ambiente="{{ $ex->ambiente }}" data-capacidad="{{ $ex->capacidad }}">
-                            {{ $ex->materia->nombre ?? '—' }} ({{ $ex->carrera }}) — {{ $ex->fecha->format('d/m/Y') }} {{ $ex->hora }}
+                            {{ $ex->asignatura->nombre ?? $ex->materia->nombre ?? '—' }} ({{ $ex->carrera }}) — {{ $ex->fecha->format('d/m/Y') }} {{ $ex->hora }}
                         </option>
                     @endforeach
                 </select>
