@@ -46,8 +46,14 @@
                     <svg class="i"><use href="#i-users"/></svg> Usuarios</a>
             @endif
             @if ($es('docente'))
-                <a href="{{ route('docente.examenes') }}" @class(['active' => request()->routeIs('docente.examenes', 'habilitaciones.*')])>
+                <a href="{{ route('docente.examenes') }}" @class(['active' => request()->routeIs('docente.examenes', 'habilitaciones.*', 'examenes.fotos')])>
                     <svg class="i"><use href="#i-exams"/></svg> Habilitar estudiantes</a>
+            @endif
+            @if ($es('docente', 'administrador'))
+                <a href="{{ route('buscador.index') }}" @class(['active' => request()->routeIs('buscador.*')])>
+                    <svg class="i"><use href="#i-search"/></svg> Buscar estudiantes</a>
+                <a href="{{ route('reportes.index') }}" @class(['active' => request()->routeIs('reportes.*')])>
+                    <svg class="i"><use href="#i-dashboard"/></svg> Reportes</a>
             @endif
             @if ($es('administrador', 'control'))
                 <a href="{{ route('verificacion.index') }}" @class(['active' => request()->routeIs('verificacion.*')])>

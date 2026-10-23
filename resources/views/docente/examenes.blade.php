@@ -45,6 +45,8 @@
                         <td>
                             <div class="actions">
                                 <a class="link-btn ok" href="{{ route('habilitaciones.index', $e) }}">Habilitar / inhabilitar</a>
+                                <a class="link-btn" href="{{ route('examenes.fotos', $e) }}">Fotos</a>
+                                <a class="link-btn" href="{{ route('reportes.show', $e) }}">Reporte</a>
                             </div>
                         </td>
                     </tr>

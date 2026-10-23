@@ -1,18 +1,24 @@
 <?php
 
+use App\Http\Controllers\AccesoLogController;
 use App\Http\Controllers\AsignacionController;
 use App\Http\Controllers\AmbienteController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BuscadorEstudiantesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocenteController;
 use App\Http\Controllers\DocenteExamenController;
 use App\Http\Controllers\EstudianteController;
+use App\Http\Controllers\EstudiantePortalController;
 use App\Http\Controllers\EstudianteQrController;
 use App\Http\Controllers\ExamenController;
+use App\Http\Controllers\FotoEstudianteController;
 use App\Http\Controllers\GrupoController;
 use App\Http\Controllers\HabilitacionController;
+use App\Http\Controllers\IncidenciaController;
 use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\TransparenciaIngresoController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VerificacionController;
@@ -118,4 +124,47 @@ Route::middleware(['auth', 'role:administrador,control'])->group(function () {
     Route::get('/transparencia', [TransparenciaIngresoController::class, 'index'])->name('transparencia.index');
     Route::get('/transparencia/datos', [TransparenciaIngresoController::class, 'datos'])->name('transparencia.datos');
     Route::post('/transparencia/autorizar', [TransparenciaIngresoController::class, 'registrar'])->name('transparencia.registrar');
+});
+
+// --- Transparencia de accesos al sistema (quién entró y quién falló la contraseña): solo administrador ---
+Route::middleware(['auth', 'role:administrador'])->group(function () {
+    Route::get('/transparencia/accesos', [AccesoLogController::class, 'index'])->name('transparencia.accesos');
+});
+
+// --- Fotos de los estudiantes ---
+// Ver la foto: cualquier personal con sesión (verificación, docentes, administrador).
+Route::middleware(['auth', 'role:administrador,docente,control'])->group(function () {
+    Route::get('/estudiantes/{estudiante}/foto', [FotoEstudianteController::class, 'ver'])->name('estudiantes.foto');
+
+    // Reportar una incidencia desde la puerta (foto no coincide, suplantación, trampa…)
+    Route::post('/incidencias', [IncidenciaController::class, 'store'])->name('incidencias.store');
+});
+
+// Revisión de fotos, reportes e incidencias, buscador de estudiantes: administrador y docente.
+Route::middleware(['auth', 'role:administrador,docente'])->group(function () {
+    Route::get('/examenes/{examen}/fotos', [FotoEstudianteController::class, 'revision'])->name('examenes.fotos');
+    Route::post('/examenes/{examen}/fotos/inhabilitar-sin-foto', [FotoEstudianteController::class, 'inhabilitarSinFoto'])->name('examenes.fotos.inhabilitar');
+    Route::post('/fotos/{estudiante}/aprobar', [FotoEstudianteController::class, 'aprobar'])->name('fotos.aprobar');
+    Route::post('/fotos/{estudiante}/observar', [FotoEstudianteController::class, 'observar'])->name('fotos.observar');
+
+    Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+    Route::get('/reportes/examen/{examen}', [ReporteController::class, 'show'])->name('reportes.show');
+    Route::post('/incidencias/{incidencia}/revisar', [IncidenciaController::class, 'revisar'])->name('incidencias.revisar');
+
+    Route::get('/buscar-estudiantes', [BuscadorEstudiantesController::class, 'index'])->name('buscador.index');
+    Route::get('/buscar-estudiantes/{estudiante}', [BuscadorEstudiantesController::class, 'show'])->name('buscador.show');
+});
+
+// --- Portal del estudiante (entra con código universitario + cédula; se abre 72 h antes del examen) ---
+Route::prefix('estudiante')->group(function () {
+    Route::get('/login', [EstudiantePortalController::class, 'showLogin'])->name('estudiante.login');
+    Route::post('/login', [EstudiantePortalController::class, 'login'])->name('estudiante.login.enviar');
+
+    Route::middleware('estudiante.auth')->group(function () {
+        Route::get('/', [EstudiantePortalController::class, 'panel'])->name('estudiante.panel');
+        Route::post('/foto', [EstudiantePortalController::class, 'subirFoto'])->name('estudiante.foto.subir');
+        Route::get('/foto', [EstudiantePortalController::class, 'fotoPropia'])->name('estudiante.foto.ver');
+        Route::get('/qr', [EstudiantePortalController::class, 'qr'])->name('estudiante.qr');
+        Route::post('/salir', [EstudiantePortalController::class, 'logout'])->name('estudiante.logout');
+    });
 });

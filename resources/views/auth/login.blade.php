@@ -65,6 +65,8 @@
             <svg class="i sm"><use href="#i-logout"/></svg> Iniciar sesión
         </button>
 
+        <p style="text-align:center;margin-top:16px;font-size:13px">¿Eres estudiante? <a href="{{ route('estudiante.login') }}" style="color:var(--blue-700);font-weight:600">Entra al portal del estudiante</a></p>
+
     </form>
 
     <p class="login-foot">
