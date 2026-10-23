@@ -50,6 +50,8 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::resource('estudiantes', EstudianteController::class)->except(['create', 'show', 'edit']);
     Route::get('/estudiantes-importar', [EstudianteController::class, 'importarForm'])->name('estudiantes.importar.form');
     Route::post('/estudiantes-importar', [EstudianteController::class, 'importar'])->name('estudiantes.importar');
+    Route::get('/estudiantes/{estudiante}/asignaciones/create', [AsignacionController::class, 'create'])
+        ->whereNumber('estudiante');
 
     // Código QR del estudiante (RQ7)
     Route::get('/estudiantes/{estudiante}/qr', [EstudianteQrController::class, 'ver'])->name('estudiantes.qr');
