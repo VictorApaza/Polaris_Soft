@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccesoLogController;
 use App\Http\Controllers\AsignacionController;
+use App\Http\Controllers\AsignacionApiController;
 use App\Http\Controllers\AmbienteController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BuscadorEstudiantesController;
@@ -50,6 +51,8 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::resource('estudiantes', EstudianteController::class)->except(['create', 'show', 'edit']);
     Route::get('/estudiantes-importar', [EstudianteController::class, 'importarForm'])->name('estudiantes.importar.form');
     Route::post('/estudiantes-importar', [EstudianteController::class, 'importar'])->name('estudiantes.importar');
+    Route::get('/estudiantes/{estudiante}/asignaciones/create', [AsignacionController::class, 'create'])
+        ->whereNumber('estudiante');
 
     // Código QR del estudiante (RQ7)
     Route::get('/estudiantes/{estudiante}/qr', [EstudianteQrController::class, 'ver'])->name('estudiantes.qr');
@@ -64,6 +67,20 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::get('/estudiantes/{estudiante}/asignaciones', [AsignacionController::class, 'create'])->name('asignaciones.create');
     Route::post('/estudiantes/{estudiante}/asignaciones', [AsignacionController::class, 'store'])->name('asignaciones.store');
     Route::delete('/asignaciones/{asignacion}', [AsignacionController::class, 'destroy'])->name('asignaciones.destroy');
+
+    // Estas rutas conservan la sesión y la protección CSRF de la aplicación.
+    Route::prefix('api')->name('api.')->group(function () {
+        Route::get('/materias', [AsignacionApiController::class, 'materias'])->name('materias.index');
+        Route::get('/materias/{materia}/grupos', [AsignacionApiController::class, 'grupos'])
+            ->whereNumber('materia')
+            ->name('materias.grupos');
+        Route::get('/grupos/{grupo}/docentes', [AsignacionApiController::class, 'docentes'])
+            ->whereNumber('grupo')
+            ->name('grupos.docentes');
+        Route::post('/estudiantes/{estudiante}/asignaciones', [AsignacionApiController::class, 'store'])
+            ->whereNumber('estudiante')
+            ->name('estudiantes.asignaciones.store');
+    });
 
     Route::resource('examenes', ExamenController::class)
         ->parameters(['examenes' => 'examen'])
