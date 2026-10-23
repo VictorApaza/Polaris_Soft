@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Ambiente;
 use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Habilitacion;
@@ -118,7 +119,9 @@ class VerificacionController extends Controller
         }
 
         // Cierra la verificación: la deja en la bitácora (y como intento si fue negativa) y arma la respuesta JSON.
-        $cerrar = function (string $resultado, string $tipoRespuesta, string $mensaje, int $http, ?Estudiante $est, array $extra = [], bool $esIntento = true) use ($request, $examen, $tipoBitacora, $dato): JsonResponse {
+        $ambienteId = $this->ambienteIdDe($examen);
+
+        $cerrar = function (string $resultado, string $tipoRespuesta, string $mensaje, int $http, ?Estudiante $est, array $extra = [], bool $esIntento = true) use ($request, $examen, $tipoBitacora, $dato, $ambienteId): JsonResponse {
             $comunes = [
                 'estudiante_id' => $est?->getKey(),
                 'examen_id' => $examen->id,
@@ -131,7 +134,11 @@ class VerificacionController extends Controller
             try {
                 Verificacion::create($comunes + ['resultado' => $resultado]);
                 if ($esIntento) {
-                    IntentoIngreso::create($comunes + ['motivo' => Str::limit($mensaje, 255, '')]);
+                    IntentoIngreso::create($comunes + [
+                        'ambiente_id' => $ambienteId,
+                        'resultado' => 'RECHAZADO',
+                        'motivo' => Str::limit($mensaje, 255, ''),
+                    ]);
                 }
             } catch (\Throwable $e) {
                 // La bitácora nunca debe impedir que el controlador vea el resultado en pantalla.
@@ -149,7 +156,10 @@ class VerificacionController extends Controller
 
         // ---- 2) Estado del estudiante ----
         if (strtoupper((string) $estudiante->estado) !== 'ACTIVO') {
-            return $cerrar('INACTIVO', 'inactivo', 'El estudiante no se encuentra activo para rendir el examen.', 422, $estudiante, $resumen);
+            $estadoActual = strtoupper((string) $estudiante->estado);
+
+            return $cerrar('INACTIVO', 'inactivo', "El estudiante no se encuentra activo para rendir el examen (estado: {$estadoActual}).", 422, $estudiante,
+                ['motivo' => "Estado del estudiante: {$estadoActual}"] + $resumen);
         }
 
         // ---- 3) ¿Ya ingresó a este examen? (RQ11) ----
@@ -193,14 +203,15 @@ class VerificacionController extends Controller
             ->first();
 
         if (! $habilitacion) {
-            return $cerrar('NO_HABILITADO', 'no_habilitado', 'El estudiante no tiene habilitación registrada para este examen.', 422, $estudiante, $resumen);
+            return $cerrar('NO_HABILITADO', 'no_habilitado', 'El estudiante no tiene habilitación registrada para este examen.', 422, $estudiante,
+                ['motivo' => 'No tiene habilitación registrada para este examen.'] + $resumen);
         }
 
         if ($habilitacion->estado !== 'habilitado') {
             $motivo = $habilitacion->motivo?->descripcion;
 
             return $cerrar('NO_HABILITADO', 'no_habilitado', $motivo ?? 'El estudiante está inhabilitado para este examen.', 422, $estudiante,
-                ['motivo_inhabilitacion' => $motivo] + $resumen);
+                ['motivo_inhabilitacion' => $motivo, 'motivo' => $motivo ?? 'Inhabilitado para este examen.'] + $resumen);
         }
 
         return $cerrar('HABILITADO', 'habilitado', 'Estudiante habilitado para este examen.', 200, $estudiante,
@@ -234,17 +245,37 @@ class VerificacionController extends Controller
             ], 422);
         }
 
-        $habilitacion = Habilitacion::where('estudiante_id', $estudianteId)
+        $metodoIngreso = $data['metodo'] ?? 'CODIGO_UNIV';
+
+        // RQ9: se repite la validación aunque el frontend no la haya impedido (HTTP 422 + intento registrado).
+        if (strtoupper((string) $estudiante->estado) !== 'ACTIVO') {
+            $estadoActual = strtoupper((string) $estudiante->estado);
+            $mensaje = "El estudiante no se encuentra activo para rendir el examen (estado: {$estadoActual}).";
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, $mensaje);
+
+            return response()->json([
+                'tipo' => 'inactivo',
+                'mensaje' => $mensaje,
+                'motivo' => "Estado del estudiante: {$estadoActual}",
+            ], 422);
+        }
+
+        $habilitacion = Habilitacion::with('motivo')
+            ->where('estudiante_id', $estudianteId)
             ->where('examen_id', $examenId)
             ->first();
 
         if (! $habilitacion || $habilitacion->estado !== 'habilitado') {
             $detalle = $habilitacion?->motivo?->descripcion;
+            $mensaje = $habilitacion
+                ? 'El estudiante está inhabilitado para este examen'.($detalle ? ': '.$detalle.'.' : '.')
+                : 'El estudiante no tiene habilitación registrada para este examen.';
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, $mensaje);
 
             return response()->json([
-                'mensaje' => $habilitacion
-                    ? 'El estudiante está inhabilitado para este examen'.($detalle ? ': '.$detalle.'.' : '.')
-                    : 'El estudiante no tiene habilitación registrada para este examen.',
+                'tipo' => 'no_habilitado',
+                'mensaje' => $mensaje,
+                'motivo' => $detalle ?? ($habilitacion ? 'Inhabilitado para este examen.' : 'No tiene habilitación registrada para este examen.'),
             ], 422);
         }
 
@@ -260,7 +291,7 @@ class VerificacionController extends Controller
                 $estudiante,
                 $examen,
                 $request->user(),
-                $data['metodo'] ?? 'CODIGO_UNIV',
+                $metodoIngreso,
                 $request
             );
         } catch (QueryException $e) {
@@ -279,6 +310,32 @@ class VerificacionController extends Controller
                 'examen' => $registro->examen_descripcion,
             ],
         ], 201);
+    }
+
+    /** Aula (tabla ambientes) que tiene asignado el examen; null si no está registrada. */
+    private function ambienteIdDe(Examen $examen): ?int
+    {
+        return Ambiente::where('nombre', (string) $examen->ambiente)->value('id');
+    }
+
+    /** Guarda en intento_ingreso un ingreso rechazado (estudiante no habilitado o no activo). Nunca rompe la respuesta. */
+    private function registrarIntentoRechazado(Request $request, Examen $examen, Estudiante $estudiante, string $metodo, string $motivo): void
+    {
+        try {
+            IntentoIngreso::create([
+                'estudiante_id' => $estudiante->getKey(),
+                'examen_id' => $examen->id,
+                'ambiente_id' => $this->ambienteIdDe($examen),
+                'controlador_id' => $request->user()->id,
+                'tipo' => self::TIPO_BITACORA[$metodo] ?? 'CODIGO_UNIVERSITARIO',
+                'dato_verificado' => (string) $estudiante->codigo_universitario,
+                'resultado' => 'RECHAZADO',
+                'motivo' => Str::limit($motivo, 255, ''),
+                'fecha_hora' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     private function resumenEstudiante(Estudiante $estudiante): array

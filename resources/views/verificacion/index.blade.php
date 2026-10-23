@@ -363,8 +363,8 @@
         const est = d.estudiante || null;
         const info = {
             habilitado:           { clase: 'ok',     icono: '✓', titulo: 'HABILITADO',       sub: 'Puede ingresar al examen', sonido: sonidoOk },
-            no_habilitado:        { clase: 'no',     icono: '✕', titulo: 'NO HABILITADO',    sub: d.mensaje, sonido: sonidoError },
-            inactivo:             { clase: 'no',     icono: '✕', titulo: 'ESTUDIANTE INACTIVO', sub: d.mensaje, sonido: sonidoError },
+            no_habilitado:        { clase: 'no',     icono: '✕', titulo: 'NO HABILITADO',    sub: d.motivo ? 'Motivo: ' + d.motivo : d.mensaje, sonido: sonidoError },
+            inactivo:             { clase: 'no',     icono: '✕', titulo: 'ESTUDIANTE NO ACTIVO', sub: d.motivo || d.mensaje, sonido: sonidoError },
             codigo_no_registrado: { clase: 'no',     icono: '?', titulo: 'NO REGISTRADO',    sub: d.mensaje, sonido: sonidoError },
             ya_ingreso:           { clase: 'alerta', icono: '⚠', titulo: 'ALERTA: YA INGRESÓ', sub: 'Posible suplantación o uso compartido del código', sonido: sonidoAlerta },
         }[d.tipo] || { clase: 'warn', icono: '!', titulo: 'RESULTADO', sub: d.mensaje, sonido: sonidoError };
@@ -424,6 +424,9 @@
         if (d.motivo_inhabilitacion) {
             card.appendChild(el('div', 'v-aviso err', 'Motivo de inhabilitación: ' + d.motivo_inhabilitacion));
         }
+        if (d.tipo === 'inactivo') {
+            card.appendChild(el('div', 'v-aviso err', d.mensaje + ' No se puede autorizar su ingreso.'));
+        }
         if (est.foto_estado === 'OBSERVADA') {
             card.appendChild(el('div', 'v-aviso warn', 'La foto fue observada por un docente: ' + (est.foto_observacion || '') + '. Verifica su identidad con el carnet.'));
         } else if (!est.foto_url) {
@@ -432,12 +435,15 @@
 
         // Acciones
         const acc = el('div', 'v-acciones');
-        if (d.tipo === 'habilitado') {
-            const b = el('button', 'v-btn ok', 'Registrar ingreso');
-            b.type = 'button'; b.id = 'v-registrar';
-            b.addEventListener('click', () => registrarIngreso(b));
-            acc.appendChild(b);
-        }
+        // El botón siempre se muestra; solo se activa si el estudiante está habilitado (RQ9).
+        const puedeIngresar = d.tipo === 'habilitado';
+        const botonIngreso = el('button', 'v-btn ok', 'Autorizar ingreso');
+        botonIngreso.type = 'button';
+        botonIngreso.id = 'v-registrar';
+        botonIngreso.disabled = !puedeIngresar;
+        if (!puedeIngresar) botonIngreso.title = 'Este estudiante no puede ingresar';
+        botonIngreso.addEventListener('click', () => registrarIngreso(botonIngreso));
+        acc.appendChild(botonIngreso);
         const mini = (texto, clase, fn) => { const b = el('button', 'btn-mini ' + clase, texto); b.type = 'button'; b.addEventListener('click', fn); return b; };
         acc.appendChild(mini('La foto no coincide', 'rojo', () => reportar('FOTO_NO_COINCIDE', 'La foto del sistema no coincide con la persona.')));
         acc.appendChild(mini('Sospecha de suplantación', 'rojo', () => reportar('SUPLANTACION_SOSPECHADA', 'El personal sospecha de suplantación.')));
