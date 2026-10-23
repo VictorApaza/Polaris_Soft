@@ -28,6 +28,35 @@ class Examen extends Model
         return $this->belongsTo(Asignatura::class, 'asignatura_id', 'id_asignatura');
     }
 
+    /** Momento exacto de inicio (fecha + hora, en la zona horaria de los exámenes). */
+    public function getInicioAttribute(): \Carbon\Carbon
+    {
+        return \Carbon\Carbon::parse($this->fecha->format('Y-m-d').' '.$this->hora_inicio, config('sciem.zona_horaria'));
+    }
+
+    public function getFinAttribute(): \Carbon\Carbon
+    {
+        return $this->inicio->copy()->addMinutes((int) ($this->duracion_min ?: 120));
+    }
+
+    /** Desde cuándo pueden entrar los estudiantes al portal para ver su aula y subir su foto. */
+    public function portalAbreEn(): \Carbon\Carbon
+    {
+        return $this->inicio->copy()->subHours(config('sciem.portal_abre_horas'));
+    }
+
+    /** Hasta cuándo pueden subir o corregir su foto. */
+    public function limiteFoto(): \Carbon\Carbon
+    {
+        return $this->inicio->copy()->subHours(config('sciem.foto_limite_horas'));
+    }
+
+    /** Nombre legible del examen: la asignatura (o materia). */
+    public function getNombreAttribute(): string
+    {
+        return $this->asignatura->nombre ?? $this->materia->nombre ?? 'Examen';
+    }
+
     /** Hora en formato HH:MM (la columna time devuelve HH:MM:SS). */
     public function getHoraAttribute(): string
     {

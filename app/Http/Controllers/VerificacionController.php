@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Habilitacion;
+use App\Models\Incidencia;
 use App\Models\IntentoIngreso;
 use App\Models\TransparenciaIngreso;
 use App\Models\Verificacion;
@@ -20,7 +21,8 @@ class VerificacionController extends Controller
 {
     public function index()
     {
-        $examenes = Examen::with('materia')
+        $examenes = Examen::with(['materia', 'asignatura'])
+            ->where('estado', '!=', 'finalizado')
             ->orderBy('fecha')
             ->orderBy('hora_inicio')
             ->get();
@@ -157,8 +159,31 @@ class VerificacionController extends Controller
             ->first();
 
         if ($ingresoPrevio) {
-            return $cerrar('YA_INGRESO', 'ya_ingreso', 'El estudiante ya registró ingreso para este examen.', 409, $estudiante,
-                ['fecha_hora' => $ingresoPrevio->fecha_hora_ingreso] + $resumen, esIntento: false);
+            // Segundo intento con el mismo código / CI / QR: queda como INCIDENCIA con la hora exacta del intento
+            // y la hora en que ingresó la primera vez, para que el docente la vea en el reporte.
+            $incidenciaId = null;
+            try {
+                $incidenciaId = Incidencia::create([
+                    'examen_id' => $examen->id,
+                    'estudiante_id' => $estudiante->getKey(),
+                    'tipo' => 'INTENTO_DUPLICADO',
+                    'metodo' => $tipoBitacora,
+                    'detalle' => 'Intentó ingresar otra vez al mismo examen (posible suplantación o uso compartido del código).',
+                    'controlador_id' => $request->user()->id,
+                    'ingreso_original_at' => $ingresoPrevio->fecha_hora_ingreso,
+                    'fecha_hora' => now(),
+                    'estado' => 'ABIERTA',
+                ])->id;
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            return $cerrar('YA_INGRESO', 'ya_ingreso', 'El estudiante ya registró ingreso para este examen.', 409, $estudiante, [
+                'fecha_hora' => $ingresoPrevio->fecha_hora_ingreso->toIso8601String(),
+                'hora_intento' => now()->toIso8601String(),
+                'incidencia_id' => $incidenciaId,
+                'alerta' => true,
+            ] + $resumen, esIntento: false);
         }
 
         // ---- 4) Habilitación para este examen (RQ3 / RQ4 / RQ9) ----
@@ -179,7 +204,7 @@ class VerificacionController extends Controller
         }
 
         return $cerrar('HABILITADO', 'habilitado', 'Estudiante habilitado para este examen.', 200, $estudiante,
-            ['codigo' => $estudiante->codigo_universitario, 'id_habilitacion' => $habilitacion->id] + $resumen, esIntento: false);
+            ['codigo' => $estudiante->codigo_universitario, 'id_habilitacion' => $habilitacion->id, 'ambiente' => $examen->ambiente] + $resumen, esIntento: false);
     }
 
     public function ingreso(Request $request, TransparenciaIngresoService $servicio): JsonResponse
@@ -268,6 +293,10 @@ class VerificacionController extends Controller
             'documento_identidad' => $estudiante->documento_identidad,
             'ci_complemento' => $estudiante->ci_complemento,
             'estado' => $estudiante->estado,
+            'foto_url' => $estudiante->foto_url,
+            'foto_estado' => $estudiante->foto_estado ?: 'SIN_FOTO',
+            'foto_estado_etiqueta' => $estudiante->foto_estado_etiqueta,
+            'foto_observacion' => $estudiante->foto_observacion,
         ];
     }
 }

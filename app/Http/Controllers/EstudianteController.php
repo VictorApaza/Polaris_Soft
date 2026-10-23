@@ -73,6 +73,11 @@ class EstudianteController extends Controller
 
     public function destroy(Estudiante $estudiante)
     {
+        // También se borra su foto del disco (si tenía).
+        if ($estudiante->foto_path) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($estudiante->foto_path);
+        }
+
         $estudiante->delete();
 
         return redirect()->route('estudiantes.index')->with('status', 'Estudiante eliminado.');

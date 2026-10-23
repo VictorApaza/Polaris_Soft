@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AccesoLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,6 +40,7 @@ class AuthController extends Controller
 
         // --- Límite de intentos fallidos ---
         if (RateLimiter::tooManyAttempts($key, self::MAX_INTENTOS)) {
+            AccesoLog::anotar('PERSONAL', $credentials['email'], false, 'BLOQUEADO');
             $segundos = RateLimiter::availableIn($key);
             $minutos = (int) ceil($segundos / 60);
 
@@ -52,6 +54,7 @@ class AuthController extends Controller
         // --- Mensaje específico: usuario no existe ---
         if (! $usuario) {
             RateLimiter::hit($key, self::MINUTOS_BLOQUEO * 60);
+            AccesoLog::anotar('PERSONAL', $credentials['email'], false, 'NO_EXISTE');
 
             return back()->withErrors([
                 'email' => 'No existe ninguna cuenta registrada con ese usuario.',
@@ -61,6 +64,7 @@ class AuthController extends Controller
         // --- Mensaje específico: cuenta inactiva ---
         if ($usuario->estado !== 'activo') {
             RateLimiter::hit($key, self::MINUTOS_BLOQUEO * 60);
+            AccesoLog::anotar('PERSONAL', $credentials['email'], false, 'INACTIVO', $usuario->id);
 
             return back()->withErrors([
                 'email' => 'Esta cuenta está inactiva. Contacte a un administrador.',
@@ -70,6 +74,7 @@ class AuthController extends Controller
         // --- Mensaje específico: contraseña incorrecta ---
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             RateLimiter::hit($key, self::MINUTOS_BLOQUEO * 60);
+            AccesoLog::anotar('PERSONAL', $credentials['email'], false, 'CONTRASENA_INCORRECTA', $usuario->id);
 
             $restantes = self::MAX_INTENTOS - RateLimiter::attempts($key);
             $aviso = $restantes > 0
@@ -82,6 +87,7 @@ class AuthController extends Controller
         // --- Login correcto ---
         RateLimiter::clear($key);
         $request->session()->regenerate();
+        AccesoLog::anotar('PERSONAL', $credentials['email'], true, 'OK', Auth::id());
 
         return match (Auth::user()->rol) {
             'administrador' => redirect()->intended('/admin/dashboard'),
@@ -123,6 +129,8 @@ class AuthController extends Controller
             $usuario->estado !== 'activo' ||
             ! Auth::validate($credentials)
         ) {
+            AccesoLog::anotar('PERSONAL', $credentials['email'], false, $usuario ? ($usuario->estado !== 'activo' ? 'INACTIVO' : 'CONTRASENA_INCORRECTA') : 'NO_EXISTE', $usuario?->id);
+
             return response()->json([
                 'mensaje' => 'Credenciales incorrectas o cuenta inactiva.',
             ], 401);

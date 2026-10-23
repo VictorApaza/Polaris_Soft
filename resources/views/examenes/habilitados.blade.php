@@ -12,7 +12,11 @@
             <h1>Estudiantes habilitados</h1>
             <p>{{ $examen->asignatura->nombre ?? $examen->materia->nombre ?? '—' }}{{ $examen->carrera ? ' · '.$examen->carrera : '' }} · {{ $examen->fecha->format('d/m/Y') }} {{ $examen->hora }} · {{ $examen->ambiente }}</p>
         </div>
-        <a class="btn ghost" href="{{ $rutaExamenes }}">‹ Volver a exámenes</a>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn ghost" href="{{ route('examenes.fotos', $examen) }}">Fotos</a>
+            <a class="btn ghost" href="{{ route('reportes.show', $examen) }}">Reporte</a>
+            <a class="btn ghost" href="{{ $rutaExamenes }}">‹ Volver a exámenes</a>
+        </div>
     </div>
 
     @if (session('status')) <div class="flash" role="status">{{ session('status') }}</div> @endif

@@ -32,9 +32,13 @@
 
         <div class="btns">
             <button class="btn" type="button" onclick="window.print()">Imprimir</button>
-            @unless ($publico)
-                <a class="btn ghost" href="{{ route('estudiantes.index') }}">Volver</a>
-            @endunless
+            @isset($volverPanel)
+                <a class="btn ghost" href="{{ $volverPanel }}">Volver a mi panel</a>
+            @else
+                @unless ($publico)
+                    <a class="btn ghost" href="{{ route('estudiantes.index') }}">Volver</a>
+                @endunless
+            @endisset
         </div>
     </div>
 

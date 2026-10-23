@@ -50,3 +50,16 @@
 | 8-2 Foto sin sentido en Verificación | — | Ya estaba eliminada |
 
 Después de actualizar: `php artisan migrate`.
+
+## Ampliación: portal del estudiante, fotos, incidencias y reportes
+
+Ver `docs/Flujo_antes_del_examen.md` (qué hace cada rol). Resumen técnico:
+
+- **Portal del estudiante** `/estudiante/login` (código universitario + cédula, con límite de intentos): aula, QR y foto.
+- **Fotos**: se guardan en `storage/app/fotos_estudiantes` (privadas, se sirven con sesión). Estados: sin foto / pendiente / aprobada / observada.
+- **Incidencias** (tabla `incidencia`): intento de ingreso repetido (automática, con hora del intento y del primer ingreso), foto no coincide, suplantación, trampa, otra.
+- **Reportes** `/reportes`: entraron, no entraron, inhabilitados por motivo, incidencias, estado de fotos.
+- **Buscador de estudiantes** `/buscar-estudiantes` (docente y administrador).
+- **Verificación rediseñada**: pestañas grandes (código, CI, QR), foto y datos, alertas, historial de la sesión.
+- **Accesos al sistema** (tabla `acceso_log`): `/transparencia/accesos`, solo administrador.
+- Migración: `2026_10_20_000001_portal_estudiante_fotos_incidencias_accesos.php`. Después: `php artisan migrate`.

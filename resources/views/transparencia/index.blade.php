@@ -27,6 +27,9 @@
             <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer">
                 <input type="checkbox" id="auto" checked> Actualizar automáticamente (cada 5 s)
             </label>
+            @if (auth()->user()->rol === 'administrador')
+                <a class="btn ghost" href="{{ route('transparencia.accesos') }}" style="padding:6px 12px;font-size:12px">Ver accesos al sistema (contraseñas fallidas)</a>
+            @endif
         </div>
     </div>
 

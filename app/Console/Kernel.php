@@ -12,7 +12,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Cada hora: inhabilita a quienes no subieron foto válida a tiempo (requiere el cron de Laravel en el servidor).
+        $schedule->command('sciem:inhabilitar-sin-foto')->hourly();
     }
 
     /**
