@@ -58,6 +58,10 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // Zona horaria de la sesión MySQL (NOW(), CURRENT_TIMESTAMP, columnas timestamp).
+            // Bolivia (America/La_Paz) es UTC-04:00 todo el año, sin horario de verano; se usa el desfase
+            // numérico porque no depende de que MySQL tenga cargadas las tablas de zonas horarias.
+            'timezone' => env('DB_TIMEZONE', '-04:00'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],

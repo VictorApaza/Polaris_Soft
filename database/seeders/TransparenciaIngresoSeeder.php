@@ -6,7 +6,7 @@ use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\TransparenciaIngreso;
 use App\Models\User;
-use App\Services\TransparenciaIngresoService;
+use App\Services\IngresoService;
 use Illuminate\Database\Seeder;
 
 /**
@@ -32,7 +32,8 @@ class TransparenciaIngresoSeeder extends Seeder
             return;
         }
 
-        $servicio = app(TransparenciaIngresoService::class);
+        // Mismo servicio que usa el botón "Autorizar ingreso": guarda `ingreso` y `transparencia_ingreso` juntas.
+        $servicio = app(IngresoService::class);
         $metodos = array_keys(TransparenciaIngreso::METODOS);
 
         foreach ($estudiantes as $i => $estudiante) {

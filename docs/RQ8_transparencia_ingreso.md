@@ -71,4 +71,6 @@ php artisan db:seed --class=TransparenciaIngresoSeeder
 
 ## Nota sobre la zona horaria
 
-`config/app.php` tiene `'timezone' => 'UTC'`. La base guarda la hora en UTC y la vista la **muestra en hora de Bolivia** (`America/La_Paz`). Si el equipo decide cambiar `timezone` a `America/La_Paz`, la vista se adapta sola.
+Desde la H.U. de registro de fecha y hora de ingreso, `config/app.php` usa `'timezone' => env('APP_TIMEZONE', 'America/La_Paz')` y la sesión MySQL usa `-04:00` (`DB_TIMEZONE`). La base guarda la hora de Bolivia y la vista la muestra tal cual. Los registros creados **antes** de ese cambio se guardaron en UTC (ver `docs/HU_registro_fecha_hora_ingreso.md`).
+
+Además, cada autorización se guarda también en la tabla `ingreso`, en la misma transacción y con la misma hora.

@@ -2,7 +2,7 @@
 
 return [
     /*
-    | Zona horaria en la que se escriben las fechas y horas de los exámenes (la app guarda sus marcas en UTC).
+    | Zona horaria en la que se escriben las fechas y horas de los exámenes (la app guarda sus marcas en la zona de config/app.php: America/La_Paz).
     */
     'zona_horaria' => env('SCIEM_ZONA_HORARIA', 'America/La_Paz'),
 

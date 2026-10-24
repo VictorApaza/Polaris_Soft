@@ -65,6 +65,8 @@
         .v-aviso.warn { background: var(--warn-bg); color: var(--warn); }
         .v-aviso.err { background: var(--danger-bg); color: var(--danger); }
         .v-aviso.info { background: var(--blue-50); color: var(--blue-700); }
+        .v-aviso .btn-mini { height: 38px; padding: 0 18px; margin-left: 12px; font-size: 14px; font-weight: 700; border-radius: 10px; border: 1px solid #f3c2bf; background: #fff; color: var(--danger); cursor: pointer; }
+        .v-aviso .btn-mini:hover { background: var(--soft); }
         .v-acciones { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; align-items: center; }
         .v-acciones .btn-mini { height: 46px; padding: 0 16px; font-size: 14px; font-weight: 600; border-radius: 10px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
         .v-acciones .btn-mini:hover { background: var(--soft); }
@@ -459,34 +461,98 @@
         agregarHistorial(info, etiquetaHist);
     }
 
+    // ---------- registrar el ingreso (la fecha y hora las pone el servidor; aquí NO se envía ninguna) ----------
+    let guardando = false;
+
+    function quitarErrorIngreso() {
+        const previo = document.getElementById('v-error-ingreso');
+        if (previo) previo.remove();
+    }
+
+    /** Falló el guardado: muestra el motivo debajo de los botones y, si tiene sentido, el botón "Reintentar". */
+    function mostrarErrorIngreso(boton, mensaje, reintentable) {
+        quitarErrorIngreso();
+        const caja = el('div', 'v-aviso err');
+        caja.id = 'v-error-ingreso';
+        caja.setAttribute('role', 'alert');
+        caja.appendChild(el('b', null, 'No se registró el ingreso. '));
+        caja.appendChild(document.createTextNode(mensaje));
+        if (reintentable) {
+            const r = el('button', 'btn-mini', 'Reintentar');
+            r.type = 'button';
+            r.id = 'v-reintentar';
+            r.addEventListener('click', () => registrarIngreso(boton));
+            caja.appendChild(r);
+        }
+        const acciones = boton.closest('.v-acciones');
+        (acciones || resultado).after(caja);
+    }
+
+    /** Confirmación para el controlador: hora registrada por el servidor en formato dd/mm/aaaa HH:mm:ss. */
+    function mostrarConfirmacionIngreso(registro, yaEstabaRegistrado) {
+        const est = ultimo.estudiante;
+        const nombre = (est.nombres + ' ' + est.apellidos).trim();
+
+        resultado.replaceChildren();
+
+        const b = el('div', 'v-banner ' + (yaEstabaRegistrado ? 'warn' : 'ok'));
+        b.appendChild(el('span', 'ico', yaEstabaRegistrado ? '!' : '✓'));
+        const t = el('div');
+        t.appendChild(el('b', null, yaEstabaRegistrado ? 'INGRESO YA REGISTRADO' : 'INGRESO REGISTRADO'));
+        t.appendChild(el('span', null, nombre));
+        b.appendChild(t);
+        resultado.appendChild(b);
+
+        const card = el('div', 'v-card');
+        const datos = el('div', 'v-datos');
+        datos.appendChild(dato2(yaEstabaRegistrado ? 'Ingresó el' : 'Hora de ingreso registrada', registro.fecha_hora_local, 'ancho nombre'));
+        card.appendChild(datos);
+        card.appendChild(el('p', 'v-ayuda', 'Hora del servidor (' + ZONA + ').'));
+        resultado.appendChild(card);
+
+        if (!yaEstabaRegistrado) agregarHistorial({ clase: 'ok', titulo: 'INGRESÓ' }, nombre);
+        ultimo = null;
+        dato.focus();
+    }
+
     async function registrarIngreso(boton) {
-        if (!ultimo) return;
+        if (!ultimo || guardando) return;
+        guardando = true;
+        quitarErrorIngreso();
+        const textoBoton = boton.textContent;
         boton.disabled = true;
+        boton.textContent = 'Registrando…';
+
         const cuerpo = { id_estudiante: ultimo.estudiante.id, id_examen: examenId(), metodo: metodo };
         if (/^\d{9}$/.test(ultimo.codigo || '')) cuerpo.codigo_universitario = ultimo.codigo;
+
         try {
             const { res, json } = await enviar(URL_INGRESO, cuerpo);
-            if (res.ok) {
+            if (res.ok && json.registro) {
                 sonidoOk();
-                resultado.replaceChildren();
-                const b = el('div', 'v-banner ok');
-                b.appendChild(el('span', 'ico', '✓'));
-                const t = el('div');
-                t.appendChild(el('b', null, 'INGRESO REGISTRADO'));
-                t.appendChild(el('span', null, (ultimo.estudiante.nombres + ' ' + ultimo.estudiante.apellidos).trim() + ' · ' + hora(json.registro && json.registro.fecha_hora)));
-                b.appendChild(t);
-                resultado.appendChild(b);
-                agregarHistorial({ clase: 'ok', titulo: 'INGRESÓ' }, (ultimo.estudiante.nombres + ' ' + ultimo.estudiante.apellidos).trim());
-                ultimo = null;
-                dato.focus();
+                mostrarConfirmacionIngreso(json.registro, false);
+            } else if (res.status === 409 && json.registro) {
+                // Ya estaba guardado (doble clic, o un reintento cuando la respuesta anterior se perdió): se muestra su hora.
+                sonidoAlerta();
+                mostrarConfirmacionIngreso(json.registro, true);
             } else {
                 sonidoError();
                 boton.disabled = false;
-                alert(json.mensaje || 'No se pudo registrar el ingreso.');
+                boton.textContent = textoBoton;
+                // 422/409 = el servidor rechazó el ingreso (reintentar no cambia nada); 5xx, 419… = falló el guardado.
+                const reintentable = !(res.status === 422 || res.status === 409);
+                const msg = json.mensaje || (res.status === 419
+                    ? 'La sesión expiró. Recarga la página e inicia sesión de nuevo.'
+                    : 'No se pudo guardar el ingreso.');
+                mostrarErrorIngreso(boton, msg, reintentable);
             }
         } catch (e) {
-            sonidoError(); boton.disabled = false;
-            alert('Error de conexión con el servidor.');
+            sonidoError();
+            boton.disabled = false;
+            boton.textContent = textoBoton;
+            mostrarErrorIngreso(boton, 'Error de conexión con el servidor. Revisa la red e inténtalo de nuevo.', true);
+        } finally {
+            guardando = false;
         }
     }
 

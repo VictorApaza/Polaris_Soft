@@ -72,8 +72,8 @@ class TransparenciaIngreso extends Model
 
     /**
      * Zona horaria con la que se MUESTRAN las horas. La base guarda la hora en la zona de la app
-     * (config/app.php); como hoy está en UTC, se muestra en hora de Bolivia. Si el equipo cambia
-     * 'timezone' a America/La_Paz, se usará esa directamente.
+     * (config/app.php), que ahora es America/La_Paz. Si alguien la vuelve a poner en UTC
+     * (APP_TIMEZONE=UTC), igual se muestra en hora de Bolivia.
      */
     public static function zonaHoraria(): string
     {

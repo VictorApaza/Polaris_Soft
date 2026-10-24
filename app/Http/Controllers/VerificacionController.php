@@ -7,13 +7,14 @@ use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Habilitacion;
 use App\Models\Incidencia;
+use App\Models\Ingreso;
 use App\Models\IntentoIngreso;
 use App\Models\TransparenciaIngreso;
 use App\Models\Verificacion;
+use App\Services\IngresoService;
 use App\Services\QrEstudianteService;
-use App\Services\TransparenciaIngresoService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -218,7 +219,7 @@ class VerificacionController extends Controller
             ['codigo' => $estudiante->codigo_universitario, 'id_habilitacion' => $habilitacion->id, 'ambiente' => $examen->ambiente] + $resumen, esIntento: false);
     }
 
-    public function ingreso(Request $request, TransparenciaIngresoService $servicio): JsonResponse
+    public function ingreso(Request $request, IngresoService $servicio): JsonResponse
     {
         $data = $request->validate([
             'id_estudiante' => ['required_without:estudiante_id', 'integer', 'exists:estudiante,id_estudiante'],
@@ -279,37 +280,74 @@ class VerificacionController extends Controller
             ], 422);
         }
 
-        if (TransparenciaIngreso::where('estudiante_id', $estudianteId)
-            ->where('examen_id', $examenId)->exists()) {
-            return response()->json([
-                'mensaje' => 'El estudiante ya registró ingreso para este examen.',
-            ], 409);
+        if ($previo = $this->ingresoPrevio($estudianteId, $examenId)) {
+            return $this->respuestaYaRegistrado($previo, $estudiante);
         }
 
+        // La fecha y la hora las pone el servidor (America/La_Paz); cualquier fecha enviada por el cliente se ignora.
+        // `ingreso` y `transparencia_ingreso` se guardan juntas en una transacción: o quedan las dos o ninguna.
         try {
-            $registro = $servicio->registrar(
+            $resultado = $servicio->registrar(
                 $estudiante,
                 $examen,
                 $request->user(),
                 $metodoIngreso,
                 $request
             );
-        } catch (QueryException $e) {
-            // Índice único (estudiante, examen): otro clic llegó primero.
+        } catch (UniqueConstraintViolationException $e) {
+            // Índice único (estudiante, examen): otro clic (o un reintento tras perder la respuesta) llegó primero.
+            $previo = $this->ingresoPrevio($estudianteId, $examenId);
+
+            return $previo
+                ? $this->respuestaYaRegistrado($previo, $estudiante)
+                : response()->json(['mensaje' => 'El estudiante ya registró ingreso para este examen.'], 409);
+        } catch (\Throwable $e) {
+            // Cualquier otro fallo al guardar (base caída, tabla sin migrar…): no se guardó nada y se puede reintentar.
+            report($e);
+
             return response()->json([
-                'mensaje' => 'El estudiante ya registró ingreso para este examen.',
-            ], 409);
+                'tipo' => 'error_guardado',
+                'mensaje' => 'No se pudo guardar el ingreso. Revisa la conexión e inténtalo de nuevo.',
+                'reintentar' => true,
+            ], 500);
         }
+
+        /** @var Ingreso $ingreso */
+        $ingreso = $resultado['ingreso'];
 
         return response()->json([
             'mensaje' => 'Ingreso registrado correctamente.',
-            'registro' => [
-                'id' => $registro->id,
-                'fecha_hora' => $registro->fecha_hora_ingreso,
-                'estudiante' => $estudiante->nombre_completo,
-                'examen' => $registro->examen_descripcion,
-            ],
+            'registro' => $this->datosDeRegistro($ingreso, $estudiante, $resultado['transparencia']->examen_descripcion),
         ], 201);
+    }
+
+    /** Ingreso ya guardado de ese estudiante en ese examen (tabla `ingreso`, o la bitácora RQ8 si es anterior a ella). */
+    private function ingresoPrevio(int $estudianteId, int $examenId): Ingreso|TransparenciaIngreso|null
+    {
+        return Ingreso::where('estudiante_id', $estudianteId)->where('examen_id', $examenId)->first()
+            ?? TransparenciaIngreso::where('estudiante_id', $estudianteId)->where('examen_id', $examenId)->first();
+    }
+
+    /** 409 que además devuelve la hora del ingreso ya registrado (así un reintento tras perder la respuesta se confirma solo). */
+    private function respuestaYaRegistrado(Ingreso|TransparenciaIngreso $previo, Estudiante $estudiante): JsonResponse
+    {
+        return response()->json([
+            'tipo' => 'ya_registrado',
+            'mensaje' => 'El estudiante ya registró ingreso para este examen.',
+            'registro' => $this->datosDeRegistro($previo, $estudiante),
+        ], 409);
+    }
+
+    /** Hora registrada: ISO 8601 con desfase (-04:00) y el texto listo para mostrar (dd/mm/aaaa HH:mm:ss). */
+    private function datosDeRegistro(Ingreso|TransparenciaIngreso $registro, Estudiante $estudiante, ?string $examen = null): array
+    {
+        return [
+            'id' => $registro->id,
+            'fecha_hora' => $registro->fecha_hora_ingreso->toIso8601String(),
+            'fecha_hora_local' => $registro->fecha_hora_local,
+            'estudiante' => $estudiante->nombre_completo,
+            'examen' => $examen ?? $registro->getAttribute('examen_descripcion'),
+        ];
     }
 
     /** Aula (tabla ambientes) que tiene asignado el examen; null si no está registrada. */

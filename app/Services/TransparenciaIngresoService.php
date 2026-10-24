@@ -7,6 +7,7 @@ use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\TransparenciaIngreso;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -30,6 +31,9 @@ class TransparenciaIngresoService
      * @param  string        $metodo    CODIGO_UNIV | CI | QR
      * @param  Request|null  $request   Para capturar IP y navegador (opcional).
      * @param  Ambiente|null $ambiente  Aula donde se controla el ingreso; si no se indica, se usa la del examen.
+     * @param  CarbonInterface|null $fechaHora  Solo para uso interno del servidor (IngresoService la pasa para que
+     *                                          `ingreso` y `transparencia_ingreso` lleven exactamente la misma hora).
+     *                                          Nunca debe venir de lo que envía el navegador. Si es null, se usa now().
      */
     public function registrar(
         Estudiante $estudiante,
@@ -37,7 +41,8 @@ class TransparenciaIngresoService
         User $controlador,
         string $metodo,
         ?Request $request = null,
-        ?Ambiente $ambiente = null
+        ?Ambiente $ambiente = null,
+        ?CarbonInterface $fechaHora = null
     ): TransparenciaIngreso {
         $metodo = strtoupper(trim($metodo));
 
@@ -64,7 +69,7 @@ class TransparenciaIngresoService
             'metodo_verificacion' => $metodo,
 
             // Hora oficial: reloj del servidor.
-            'fecha_hora_ingreso' => now(),
+            'fecha_hora_ingreso' => $fechaHora ?? now(),
 
             // Instantánea legible.
             'estudiante_codigo' => Str::limit((string) $estudiante->codigo_universitario, 20, ''),
