@@ -368,7 +368,8 @@
             no_habilitado:        { clase: 'no',     icono: '✕', titulo: 'NO HABILITADO',    sub: d.motivo ? 'Motivo: ' + d.motivo : d.mensaje, sonido: sonidoError },
             inactivo:             { clase: 'no',     icono: '✕', titulo: 'ESTUDIANTE NO ACTIVO', sub: d.motivo || d.mensaje, sonido: sonidoError },
             codigo_no_registrado: { clase: 'no',     icono: '?', titulo: 'NO REGISTRADO',    sub: d.mensaje, sonido: sonidoError },
-            ya_ingreso:           { clase: 'alerta', icono: '⚠', titulo: 'ALERTA: YA INGRESÓ', sub: 'Posible suplantación o uso compartido del código', sonido: sonidoAlerta },
+            ya_ingreso:           { clase: 'warn',   icono: '!', titulo: 'EL ESTUDIANTE YA INGRESÓ',
+                                    sub: 'Ingresó el ' + (d.fecha_hora_local || '—') + (d.ambiente ? ' · Aula ' + d.ambiente : ''), sonido: sonidoAlerta },
         }[d.tipo] || { clase: 'warn', icono: '!', titulo: 'RESULTADO', sub: d.mensaje, sonido: sonidoError };
 
         info.sonido();
@@ -417,10 +418,11 @@
 
         // Avisos
         if (d.tipo === 'ya_ingreso') {
-            const a = el('div', 'v-aviso err');
-            a.appendChild(el('b', null, 'Ingresó por primera vez a las ' + hora(d.fecha_hora) + '. '));
+            const a = el('div', 'v-aviso warn');
+            a.appendChild(el('b', null, 'Ingreso anterior: ' + (d.fecha_hora_local || '—') + (d.ambiente ? ' en el aula ' + d.ambiente : '') + '. '));
             a.appendChild(document.createTextNode('Este nuevo intento fue a las ' + hora(d.hora_intento)
-                + ' y quedó registrado como incidencia' + (d.incidencia_id ? ' #' + d.incidencia_id : '') + '. Avisa al docente y pide su carnet.'));
+                + ' y quedó registrado' + (d.incidencia_id ? ' como incidencia #' + d.incidencia_id : '')
+                + '. No se puede autorizar el ingreso otra vez: pide su carnet y avisa al docente.'));
             card.appendChild(a);
         }
         if (d.motivo_inhabilitacion) {
@@ -506,6 +508,7 @@
         const card = el('div', 'v-card');
         const datos = el('div', 'v-datos');
         datos.appendChild(dato2(yaEstabaRegistrado ? 'Ingresó el' : 'Hora de ingreso registrada', registro.fecha_hora_local, 'ancho nombre'));
+        if (registro.ambiente) datos.appendChild(dato2(yaEstabaRegistrado ? 'Aula del ingreso anterior' : 'Aula', registro.ambiente, 'ancho'));
         card.appendChild(datos);
         card.appendChild(el('p', 'v-ayuda', 'Hora del servidor (' + ZONA + ').'));
         resultado.appendChild(card);

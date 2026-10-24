@@ -164,12 +164,12 @@ class VerificacionController extends Controller
         }
 
         // ---- 3) ¿Ya ingresó a este examen? (RQ11) ----
-        $ingresoPrevio = TransparenciaIngreso::where('estudiante_id', $estudiante->id_estudiante)
-            ->where('examen_id', $examen->id)
-            ->latest('fecha_hora_ingreso')
-            ->first();
+        $ingresoPrevio = $this->ingresoPrevio((int) $estudiante->id_estudiante, (int) $examen->id);
 
         if ($ingresoPrevio) {
+            // RQ11: el intento repetido queda en intento_ingreso con el motivo INGRESO_DUPLICADO.
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodo, 'INGRESO_DUPLICADO');
+
             // Segundo intento con el mismo código / CI / QR: queda como INCIDENCIA con la hora exacta del intento
             // y la hora en que ingresó la primera vez, para que el docente la vea en el reporte.
             $incidenciaId = null;
@@ -191,6 +191,8 @@ class VerificacionController extends Controller
 
             return $cerrar('YA_INGRESO', 'ya_ingreso', 'El estudiante ya registró ingreso para este examen.', 409, $estudiante, [
                 'fecha_hora' => $ingresoPrevio->fecha_hora_ingreso->toIso8601String(),
+                'fecha_hora_local' => $ingresoPrevio->fecha_hora_local,
+                'ambiente' => $this->ambienteDelIngreso($ingresoPrevio, $examen),
                 'hora_intento' => now()->toIso8601String(),
                 'incidencia_id' => $incidenciaId,
                 'alerta' => true,
@@ -281,7 +283,9 @@ class VerificacionController extends Controller
         }
 
         if ($previo = $this->ingresoPrevio($estudianteId, $examenId)) {
-            return $this->respuestaYaRegistrado($previo, $estudiante);
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, 'INGRESO_DUPLICADO');
+
+            return $this->respuestaYaRegistrado($previo, $estudiante, $examen);
         }
 
         // La fecha y la hora las pone el servidor (America/La_Paz); cualquier fecha enviada por el cliente se ignora.
@@ -296,10 +300,11 @@ class VerificacionController extends Controller
             );
         } catch (UniqueConstraintViolationException $e) {
             // Índice único (estudiante, examen): otro clic (o un reintento tras perder la respuesta) llegó primero.
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, 'INGRESO_DUPLICADO');
             $previo = $this->ingresoPrevio($estudianteId, $examenId);
 
             return $previo
-                ? $this->respuestaYaRegistrado($previo, $estudiante)
+                ? $this->respuestaYaRegistrado($previo, $estudiante, $examen)
                 : response()->json(['mensaje' => 'El estudiante ya registró ingreso para este examen.'], 409);
         } catch (\Throwable $e) {
             // Cualquier otro fallo al guardar (base caída, tabla sin migrar…): no se guardó nada y se puede reintentar.
@@ -317,7 +322,7 @@ class VerificacionController extends Controller
 
         return response()->json([
             'mensaje' => 'Ingreso registrado correctamente.',
-            'registro' => $this->datosDeRegistro($ingreso, $estudiante, $resultado['transparencia']->examen_descripcion),
+            'registro' => $this->datosDeRegistro($ingreso, $estudiante, $resultado['transparencia']->examen_descripcion, $resultado['transparencia']->ambiente_nombre),
         ], 201);
     }
 
@@ -329,17 +334,29 @@ class VerificacionController extends Controller
     }
 
     /** 409 que además devuelve la hora del ingreso ya registrado (así un reintento tras perder la respuesta se confirma solo). */
-    private function respuestaYaRegistrado(Ingreso|TransparenciaIngreso $previo, Estudiante $estudiante): JsonResponse
+    private function respuestaYaRegistrado(Ingreso|TransparenciaIngreso $previo, Estudiante $estudiante, Examen $examen): JsonResponse
     {
         return response()->json([
             'tipo' => 'ya_registrado',
             'mensaje' => 'El estudiante ya registró ingreso para este examen.',
-            'registro' => $this->datosDeRegistro($previo, $estudiante),
+            'registro' => $this->datosDeRegistro($previo, $estudiante, null, $this->ambienteDelIngreso($previo, $examen)),
         ], 409);
     }
 
+    /** Aula en la que se registró el ingreso anterior (si no se puede saber, la del examen). */
+    private function ambienteDelIngreso(Ingreso|TransparenciaIngreso $previo, Examen $examen): string
+    {
+        if ($previo instanceof TransparenciaIngreso && filled($previo->ambiente_nombre)) {
+            return (string) $previo->ambiente_nombre;
+        }
+
+        $nombre = $previo->ambiente_id ? Ambiente::find($previo->ambiente_id)?->nombre : null;
+
+        return (string) ($nombre ?: $examen->ambiente);
+    }
+
     /** Hora registrada: ISO 8601 con desfase (-04:00) y el texto listo para mostrar (dd/mm/aaaa HH:mm:ss). */
-    private function datosDeRegistro(Ingreso|TransparenciaIngreso $registro, Estudiante $estudiante, ?string $examen = null): array
+    private function datosDeRegistro(Ingreso|TransparenciaIngreso $registro, Estudiante $estudiante, ?string $examen = null, ?string $ambiente = null): array
     {
         return [
             'id' => $registro->id,
@@ -347,6 +364,7 @@ class VerificacionController extends Controller
             'fecha_hora_local' => $registro->fecha_hora_local,
             'estudiante' => $estudiante->nombre_completo,
             'examen' => $examen ?? $registro->getAttribute('examen_descripcion'),
+            'ambiente' => $ambiente,
         ];
     }
 
