@@ -246,6 +246,11 @@
     const sonidoOk = () => tonos([880, 1320], 'sine');
     const sonidoError = () => tonos([220, 180], 'square');
     const sonidoAlerta = () => tonos([300, 200, 300, 200, 300], 'sawtooth');
+    // RQ12: alarma + vibración (el personal usa celulares / tablets) cuando el examen no le corresponde al estudiante.
+    const sonidoNoCorresponde = () => {
+        sonidoAlerta();
+        try { if (navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 250]); } catch (e) { /* sin vibración */ }
+    };
 
     // ---------- método y examen ----------
     function setMetodo(m) {
@@ -370,6 +375,8 @@
             codigo_no_registrado: { clase: 'no',     icono: '?', titulo: 'NO REGISTRADO',    sub: d.mensaje, sonido: sonidoError },
             ya_ingreso:           { clase: 'warn',   icono: '!', titulo: 'EL ESTUDIANTE YA INGRESÓ',
                                     sub: 'Ingresó el ' + (d.fecha_hora_local || '—') + (d.ambiente ? ' · Aula ' + d.ambiente : ''), sonido: sonidoAlerta },
+            no_corresponde:       { clase: 'alerta', icono: '⚠', titulo: 'EXAMEN NO CORRESPONDE',
+                                    sub: 'Este examen no le corresponde al estudiante · intento n.º ' + (d.numero_intento || 1), sonido: sonidoNoCorresponde },
         }[d.tipo] || { clase: 'warn', icono: '!', titulo: 'RESULTADO', sub: d.mensaje, sonido: sonidoError };
 
         info.sonido();
@@ -424,6 +431,25 @@
                 + ' y quedó registrado' + (d.incidencia_id ? ' como incidencia #' + d.incidencia_id : '')
                 + '. No se puede autorizar el ingreso otra vez: pide su carnet y avisa al docente.'));
             card.appendChild(a);
+        }
+        if (d.tipo === 'no_corresponde') {
+            // RQ12: alerta inmediata + a qué examen le corresponde entrar (todo con textContent, nada de HTML).
+            const a = el('div', 'v-aviso err');
+            a.appendChild(el('b', null, 'Intento n.º ' + (d.numero_intento || 1) + ' a las ' + hora(d.hora_intento) + ': quedó registrado. '));
+            a.appendChild(document.createTextNode('No se puede autorizar su ingreso a este examen. Pídele su carnet e indícale su aula y horario.'));
+            card.appendChild(a);
+
+            const propios = d.examenes_asignados || [];
+            const s = el('div', 'v-aviso info');
+            if (propios.length) {
+                s.appendChild(el('b', null, propios.length > 1 ? 'Sus exámenes: ' : 'Su examen: '));
+                s.appendChild(document.createTextNode(propios
+                    .map(x => x.nombre + ' · ' + x.fecha_local + ' ' + x.hora + ' · Aula ' + (x.ambiente || '—'))
+                    .join('   |   ')));
+            } else {
+                s.appendChild(document.createTextNode('El estudiante no tiene ningún examen habilitado pendiente.'));
+            }
+            card.appendChild(s);
         }
         if (d.motivo_inhabilitacion) {
             card.appendChild(el('div', 'v-aviso err', 'Motivo de inhabilitación: ' + d.motivo_inhabilitacion));
