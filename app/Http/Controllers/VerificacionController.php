@@ -11,6 +11,7 @@ use App\Models\Ingreso;
 use App\Models\IntentoIngreso;
 use App\Models\TransparenciaIngreso;
 use App\Models\Verificacion;
+use App\Services\ExamenNoCorrespondeService;
 use App\Services\IngresoService;
 use App\Services\QrEstudianteService;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -21,6 +22,11 @@ use Illuminate\Validation\Rule;
 
 class VerificacionController extends Controller
 {
+    /** RQ12: detecta y describe el ingreso a un examen que no le corresponde al estudiante. */
+    public function __construct(private ExamenNoCorrespondeService $noCorresponde)
+    {
+    }
+
     public function index()
     {
         $examenes = Examen::with(['materia', 'asignatura'])
@@ -206,6 +212,19 @@ class VerificacionController extends Controller
             ->first();
 
         if (! $habilitacion) {
+            // RQ12: no está habilitado Y tampoco está inscrito en la materia del examen => el examen no le corresponde.
+            // Queda en intento_ingreso (motivo EXAMEN_NO_CORRESPONDE) y la pantalla muestra una alerta inmediata.
+            if ($this->noCorresponde->noLeCorresponde($examen, $estudiante)) {
+                $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodo, ExamenNoCorrespondeService::MOTIVO);
+
+                return $cerrar(ExamenNoCorrespondeService::MOTIVO, 'no_corresponde', ExamenNoCorrespondeService::MENSAJE, 422, $estudiante, [
+                    'motivo' => ExamenNoCorrespondeService::MENSAJE,
+                    'ambiente' => $examen->ambiente,
+                    'hora_intento' => now()->toIso8601String(),
+                    'alerta' => true,
+                ] + $this->noCorresponde->datosDeAlerta($examen, $estudiante) + $resumen, esIntento: false);
+            }
+
             return $cerrar('NO_HABILITADO', 'no_habilitado', 'El estudiante no tiene habilitación registrada para este examen.', 422, $estudiante,
                 ['motivo' => 'No tiene habilitación registrada para este examen.'] + $resumen);
         }
@@ -267,6 +286,17 @@ class VerificacionController extends Controller
             ->where('estudiante_id', $estudianteId)
             ->where('examen_id', $examenId)
             ->first();
+
+        // RQ12: el examen no le corresponde (sin habilitación y fuera de la materia): 422 + intento registrado.
+        if (! $habilitacion && $this->noCorresponde->noLeCorresponde($examen, $estudiante)) {
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, ExamenNoCorrespondeService::MOTIVO);
+
+            return response()->json([
+                'tipo' => 'no_corresponde',
+                'mensaje' => ExamenNoCorrespondeService::MENSAJE,
+                'motivo' => ExamenNoCorrespondeService::MENSAJE,
+            ] + $this->noCorresponde->datosDeAlerta($examen, $estudiante), 422);
+        }
 
         if (! $habilitacion || $habilitacion->estado !== 'habilitado') {
             $detalle = $habilitacion?->motivo?->descripcion;
