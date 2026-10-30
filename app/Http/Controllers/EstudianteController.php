@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asignacion;
+use App\Models\Docente;
 use App\Models\Estudiante;
 use App\Models\Grupo;
 use App\Models\Materia;
 use App\Services\InscripcionAsignaturaService;
 use App\Support\Catalogo;
+use App\Support\LectorTabla;
+use App\Support\Plantillas;
 use App\Support\Texto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -135,16 +138,50 @@ class EstudianteController extends Controller
     // ==================================================================
 
     /** Muestra el formulario de importación (facultad, carrera, materia, grupo y archivo). */
-    public function importarForm()
+    public function importarForm(Request $request)
     {
-        $materias = Materia::whereNotNull('carrera')->orderBy('nombre')->get(['id', 'nombre', 'sigla', 'carrera']);
-        $grupos = Grupo::with('docente:id,nombre,apellido')->orderBy('nombre')->get(['id', 'nombre', 'materia_id', 'docente_id']);
+        $docente = $this->docenteActual($request);
+        $esDocente = $request->user()->rol === 'docente';
+
+        $grupos = Grupo::with('docente:id,nombre,apellido')
+            ->when($esDocente, fn ($q) => $q->where('docente_id', $docente?->id ?? 0))
+            ->orderBy('nombre')->get(['id', 'nombre', 'materia_id', 'docente_id']);
+
+        $materias = Materia::whereNotNull('carrera')
+            ->when($esDocente, fn ($q) => $q->whereIn('id', $grupos->pluck('materia_id')->unique()))
+            ->orderBy('nombre')->get(['id', 'nombre', 'sigla', 'carrera']);
 
         return view('estudiantes.importar', [
             'facultades' => Catalogo::FACULTADES,
             'materias' => $materias,
             'grupos' => $grupos,
+            'esDocente' => $esDocente,
         ]);
+    }
+
+    /** Plantilla CSV con el formato exacto de la importación (la descarga el administrador o el docente). */
+    public function plantilla()
+    {
+        return Plantillas::csv('plantilla_estudiantes.csv',
+            ['codigo_universitario', 'ci', 'ci_complemento', 'nombres', 'apellidos'],
+            [
+                ['202400034', '7123456', 'A1', 'Gabriel Fernando', 'Romero Silva'],
+                ['202400041', '8456123', '', 'Valeria', 'Gutiérrez Rojas'],
+            ]);
+    }
+
+    /** Ficha del docente que está usando el sistema (null si no es docente o no tiene ficha). */
+    private function docenteActual(Request $request): ?Docente
+    {
+        return $request->user()->rol === 'docente' ? Docente::paraUsuario($request->user()) : null;
+    }
+
+    /** Vuelve a dejar la cédula como contraseña del portal (para el estudiante que olvidó la que eligió). */
+    public function restablecerPassword(Estudiante $estudiante)
+    {
+        $estudiante->forceFill(['password' => null, 'password_cambiada_at' => null])->save();
+
+        return back()->with('status', "La contraseña de {$estudiante->nombre_completo} volvió a ser su cédula de identidad.");
     }
 
     /**
@@ -153,27 +190,51 @@ class EstudianteController extends Controller
      */
     public function importar(Request $request)
     {
-        $request->validate([
-            'facultad' => ['required', Rule::in(array_keys(Catalogo::FACULTADES))],
-            'carrera' => ['required', 'string'],
+        $esDocente = $request->user()->rol === 'docente';
+
+        $reglas = [
             'materia_id' => ['required', 'exists:materias,id'],
             'grupo_id' => ['required', 'exists:grupos,id'],
-            'archivo' => ['required', 'file', 'mimes:csv,txt', 'max:2048'],
-        ], [], ['archivo' => 'archivo']);
-
-        if (! in_array($request->carrera, Catalogo::carrerasDe($request->facultad), true)) {
-            return back()->withInput()->withErrors(['carrera' => 'La carrera no pertenece a la facultad elegida.']);
+            'archivo' => ['required', 'file', 'mimes:csv,txt,xlsx', 'max:2048'],
+        ];
+        if (! $esDocente) {
+            $reglas['facultad'] = ['required', Rule::in(array_keys(Catalogo::FACULTADES))];
+            $reglas['carrera'] = ['required', 'string'];
         }
+        $request->validate($reglas, [
+            'archivo.required' => 'Elige el archivo CSV o Excel con los estudiantes.',
+            'archivo.mimes' => 'El archivo debe ser CSV o Excel (.xlsx).',
+        ]);
 
         $grupo = Grupo::findOrFail($request->grupo_id);
         if ((int) $grupo->materia_id !== (int) $request->materia_id) {
             return back()->withInput()->withErrors(['grupo_id' => 'El grupo elegido no pertenece a la materia seleccionada.']);
         }
 
-        $filas = $this->leerCsv($request->file('archivo'));
+        if ($esDocente) {
+            // El docente solo importa a sus propios grupos; la facultad y la carrera salen de la materia.
+            $docente = $this->docenteActual($request);
+            if (! $docente || (int) $grupo->docente_id !== (int) $docente->id) {
+                abort(403, 'Solo puedes importar estudiantes a los grupos que tienes a cargo.');
+            }
+            $materia = Materia::findOrFail($request->materia_id);
+            if (! $materia->facultad || ! $materia->carrera) {
+                return back()->withInput()->withErrors(['materia_id' => 'La materia no tiene facultad o carrera. Pídele al administrador que la complete.']);
+            }
+            $facultad = $materia->facultad;
+            $carrera = $materia->carrera;
+        } else {
+            if (! in_array($request->carrera, Catalogo::carrerasDe($request->facultad), true)) {
+                return back()->withInput()->withErrors(['carrera' => 'La carrera no pertenece a la facultad elegida.']);
+            }
+            $facultad = $request->facultad;
+            $carrera = $request->carrera;
+        }
+
+        $filas = LectorTabla::leer($request->file('archivo'));
 
         if ($filas === null) {
-            return back()->withInput()->withErrors(['archivo' => 'No se pudo leer el archivo. Verifique que sea un CSV válido con las columnas: codigo_universitario, ci, ci_complemento, nombres, apellidos.']);
+            return back()->withInput()->withErrors(['archivo' => 'No se pudo leer el archivo. Usa la plantilla (CSV) o un Excel .xlsx con las columnas: codigo_universitario, ci, ci_complemento, nombres, apellidos.']);
         }
 
         if (empty($filas)) {
@@ -226,15 +287,15 @@ class EstudianteController extends Controller
         }
 
         // --- Todo válido: se crean los estudiantes y sus asignaciones ---
-        $creados = DB::transaction(function () use ($filas, $request, $grupo) {
+        $creados = DB::transaction(function () use ($filas, $request, $grupo, $facultad, $carrera) {
             $total = 0;
 
             foreach ($filas as $fila) {
                 $codigo = trim((string) $fila['codigo_universitario']);
 
                 $estudiante = Estudiante::create([
-                    'facultad' => $request->facultad,
-                    'carrera' => $request->carrera,
+                    'facultad' => $facultad,
+                    'carrera' => $carrera,
                     'codigo_universitario' => $codigo,
                     'ci_complemento' => trim((string) ($fila['ci_complemento'] ?? '')) ?: null,
                     'documento_identidad' => trim((string) $fila['ci']),
@@ -258,7 +319,7 @@ class EstudianteController extends Controller
             return $total;
         });
 
-        return redirect()->route('estudiantes.index')
+        return redirect()->route($esDocente ? 'docente.materias' : 'estudiantes.index')
             ->with('status', "Se importaron {$creados} estudiantes y se asignaron a la materia y grupo seleccionados.");
     }
 

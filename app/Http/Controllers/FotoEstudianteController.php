@@ -23,6 +23,8 @@ class FotoEstudianteController extends Controller
     /** Pantalla del docente: fotos de los estudiantes de un examen, para aprobarlas u observarlas. */
     public function revision(Request $request, Examen $examen)
     {
+        abort_unless($examen->permiteA($request->user()), 403, 'Ese examen no es de una de tus materias.');
+
         $examen->loadMissing(['asignatura', 'materia']);
         $ids = Habilitacion::candidatosIds($examen);
         $filtro = $request->string('f')->toString();
@@ -94,8 +96,10 @@ class FotoEstudianteController extends Controller
     }
 
     /** Pasado el plazo: inhabilita a los habilitados sin foto válida. */
-    public function inhabilitarSinFoto(Examen $examen, FotoEstudianteService $servicio)
+    public function inhabilitarSinFoto(Request $request, Examen $examen, FotoEstudianteService $servicio)
     {
+        abort_unless($examen->permiteA($request->user()), 403, 'Ese examen no es de una de tus materias.');
+
         if (now()->lt($examen->limiteFoto())) {
             $limite = $examen->limiteFoto()->format('d/m/Y H:i');
 

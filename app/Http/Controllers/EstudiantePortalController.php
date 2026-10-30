@@ -8,7 +8,9 @@ use App\Models\Habilitacion;
 use App\Models\TransparenciaIngreso;
 use App\Services\PortalEstudianteService;
 use App\Services\QrEstudianteService;
+use App\Services\ValidadorFotoRostro;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 
@@ -34,10 +36,10 @@ class EstudiantePortalController extends Controller
     {
         $data = $request->validate([
             'codigo_universitario' => ['required', 'string', 'max:30'],
-            'documento_identidad' => ['required', 'string', 'max:20'],
+            'documento_identidad' => ['required', 'string', 'max:100'],
         ], [
             'codigo_universitario.required' => 'Ingresa tu código universitario.',
-            'documento_identidad.required' => 'Ingresa tu cédula de identidad.',
+            'documento_identidad.required' => 'Ingresa tu contraseña (si aún no la cambiaste, es tu cédula de identidad).',
         ]);
 
         $codigo = trim($data['codigo_universitario']);
@@ -51,14 +53,18 @@ class EstudiantePortalController extends Controller
             return back()->withErrors(['codigo_universitario' => "Demasiados intentos. Intenta de nuevo en {$minutos} minuto(s)."])->onlyInput('codigo_universitario');
         }
 
-        $estudiante = Estudiante::where('codigo_universitario', $codigo)->where('documento_identidad', $ci)->first();
+        // La contraseña es la cédula hasta que el estudiante la cambie desde su panel.
+        $estudiante = Estudiante::where('codigo_universitario', $codigo)->first();
+        if ($estudiante && ! $this->claveCorrecta($estudiante, $ci)) {
+            $estudiante = null;
+        }
 
         if (! $estudiante) {
             RateLimiter::hit($clave, self::SEGUNDOS_BLOQUEO);
             AccesoLog::anotar('ESTUDIANTE', $codigo, false, 'DATOS_INCORRECTOS');
 
             // Mensaje genérico: no se revela si el código existe.
-            return back()->withErrors(['codigo_universitario' => 'El código universitario o la cédula no coinciden.'])->onlyInput('codigo_universitario');
+            return back()->withErrors(['codigo_universitario' => 'El código universitario o la contraseña no coinciden.'])->onlyInput('codigo_universitario');
         }
 
         if (strtoupper((string) $estudiante->estado) === 'INACTIVO') {
@@ -73,6 +79,45 @@ class EstudiantePortalController extends Controller
         AccesoLog::anotar('ESTUDIANTE', $codigo, true, 'OK', $estudiante->getKey());
 
         return redirect()->route('estudiante.panel');
+    }
+
+    /** ¿Es correcta la clave? Con contraseña propia se compara el hash; si no, vale la cédula. */
+    private function claveCorrecta(Estudiante $estudiante, string $clave): bool
+    {
+        if (filled($estudiante->password)) {
+            return Hash::check($clave, $estudiante->password);
+        }
+
+        return hash_equals((string) $estudiante->documento_identidad, $clave);
+    }
+
+    /** El estudiante cambia su contraseña (la primera vez la actual es su cédula). */
+    public function cambiarPassword(Request $request)
+    {
+        /** @var Estudiante $estudiante */
+        $estudiante = $request->attributes->get('estudiante');
+
+        $data = $request->validate([
+            'password_actual' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'max:100', 'confirmed', 'different:password_actual'],
+        ], [
+            'password_actual.required' => 'Escribe tu contraseña actual (si nunca la cambiaste, es tu cédula).',
+            'password.required' => 'Escribe la contraseña nueva.',
+            'password.min' => 'La contraseña nueva debe tener al menos 8 caracteres.',
+            'password.confirmed' => 'La confirmación no coincide con la contraseña nueva.',
+            'password.different' => 'La contraseña nueva debe ser distinta de la actual.',
+        ]);
+
+        if (! $this->claveCorrecta($estudiante, $data['password_actual'])) {
+            return back()->withErrors(['password_actual' => 'La contraseña actual no es correcta.'])->with('abrir_password', true);
+        }
+
+        $estudiante->forceFill([
+            'password' => Hash::make($data['password']),
+            'password_cambiada_at' => now(),
+        ])->save();
+
+        return back()->with('status', 'Tu contraseña se cambió correctamente. La próxima vez entra con la nueva.');
     }
 
     public function logout(Request $request)
@@ -141,6 +186,13 @@ class EstudiantePortalController extends Controller
         ]);
 
         $archivo = $request->file('foto');
+
+        // Revisión automática: si la foto está borrosa, oscura, con lentes oscuros o sin rostro visible, no se guarda.
+        $revision = app(ValidadorFotoRostro::class)->validar($archivo->getRealPath());
+        if (! $revision['ok']) {
+            return back()->with('error', $revision['motivo']);
+        }
+
         $nombre = $estudiante->getKey().'_'.time().'.'.$archivo->extension();
         $ruta = $archivo->storeAs('fotos_estudiantes', $nombre, 'local');
 

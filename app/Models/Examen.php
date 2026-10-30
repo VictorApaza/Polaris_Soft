@@ -75,6 +75,37 @@ class Examen extends Model
         return $this->materia?->asignaciones_count ?? $this->materia?->asignaciones()->count() ?? 0;
     }
 
+    /**
+     * Si el usuario es docente, deja solo los exámenes de las materias donde dicta (grupos a su cargo).
+     * Para administrador y control no filtra nada.
+     */
+    public function scopeDeDocente(Builder $q, User $usuario): Builder
+    {
+        if ($usuario->rol !== 'docente') {
+            return $q;
+        }
+
+        $docente = Docente::paraUsuario($usuario);
+        if (! $docente) {
+            return $q->whereRaw('1 = 0');
+        }
+
+        $materiaIds = Grupo::where('docente_id', $docente->id)->pluck('materia_id')->unique()->all();
+        $siglas = Materia::whereIn('id', $materiaIds)->pluck('sigla')->filter()->all();
+
+        return $q->where(function ($w) use ($materiaIds, $siglas) {
+            $w->whereIn('examenes.materia_id', $materiaIds)
+              ->orWhereHas('asignatura', fn ($a) => $a->whereIn('codigo', $siglas));
+        });
+    }
+
+    /** ¿Este usuario puede trabajar con este examen? (el docente solo con los de sus materias) */
+    public function permiteA(User $usuario): bool
+    {
+        return $usuario->rol !== 'docente'
+            || static::query()->deDocente($usuario)->whereKey($this->getKey())->exists();
+    }
+
     public function scopeBuscar(Builder $q, ?string $texto): Builder
     {
         return $q->when($texto, fn ($q) => $q->where(function ($w) use ($texto) {

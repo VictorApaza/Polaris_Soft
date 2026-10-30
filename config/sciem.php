@@ -19,4 +19,16 @@ return [
 
     /* Peso máximo de la foto en KB. */
     'foto_max_kb' => (int) env('SCIEM_FOTO_MAX_KB', 2048),
+
+    /*
+    | Revisión automática de la foto al subirla (ver App\Services\ValidadorFotoRostro).
+    | Si rechaza fotos buenas, baja los mínimos; si deja pasar fotos malas, súbelos. SCIEM_FOTO_VALIDAR=false la apaga.
+    */
+    'foto_validar' => filter_var(env('SCIEM_FOTO_VALIDAR', true), FILTER_VALIDATE_BOOLEAN),
+    'foto_nitidez_min' => (float) env('SCIEM_FOTO_NITIDEZ_MIN', 40),
+    'foto_brillo_min' => (float) env('SCIEM_FOTO_BRILLO_MIN', 55),
+    'foto_brillo_max' => (float) env('SCIEM_FOTO_BRILLO_MAX', 215),
+    'foto_contraste_min' => (float) env('SCIEM_FOTO_CONTRASTE_MIN', 25),
+    'foto_piel_min' => (float) env('SCIEM_FOTO_PIEL_MIN', 0.08),
+    'foto_lentes_ratio' => (float) env('SCIEM_FOTO_LENTES_RATIO', 0.5),
 ];

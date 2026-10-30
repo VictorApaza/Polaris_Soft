@@ -14,7 +14,9 @@ class DocenteExamenController extends Controller
 {
     public function index(Request $request)
     {
+        // El docente ve solo los exámenes de las materias donde dicta.
         $examenes = Examen::with(['asignatura', 'materia'])
+            ->deDocente($request->user())
             ->buscar($request->string('buscar')->toString())
             ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->estado))
             ->orderBy('fecha')->orderBy('hora_inicio')

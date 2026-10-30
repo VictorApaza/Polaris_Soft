@@ -25,7 +25,7 @@
 
         <div class="notice">
             <svg class="i sm"><use href="#i-info"/></svg>
-            <span>Entra con tu <b>código universitario</b> y tu <b>cédula de identidad</b>. El portal se abre {{ config('sciem.portal_abre_horas') }} horas antes de tu examen.</span>
+            <span>Entra con tu <b>código universitario</b> y tu <b>contraseña</b> (si aún no la cambiaste, es tu <b>cédula de identidad</b>). El portal se abre {{ config('sciem.portal_abre_horas') }} horas antes de tu examen.</span>
         </div>
 
         @if ($errors->any())
@@ -42,10 +42,10 @@
         </div>
 
         <div class="field">
-            <label for="ci">Cédula de identidad</label>
+            <label for="ci">Contraseña <small style="font-weight:400">(o cédula de identidad)</small></label>
             <div class="icon-in">
                 <svg class="i"><use href="#i-lock"/></svg>
-                <input id="ci" type="password" name="documento_identidad" inputmode="numeric" autocomplete="off" placeholder="Solo el número, sin complemento" required>
+                <input id="ci" type="password" name="documento_identidad" autocomplete="current-password" placeholder="Tu contraseña o tu cédula (sin complemento)" required>
             </div>
         </div>
 

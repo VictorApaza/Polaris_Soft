@@ -16,6 +16,7 @@ class Incidencia extends Model
         'SUPLANTACION_SOSPECHADA' => 'Posible suplantación',
         'FOTO_NO_COINCIDE' => 'La foto no coincide',
         'TRAMPA' => 'Trampa durante el examen',
+        'SUPLANTACION_CONFIRMADA' => 'Suplantación confirmada',
         'OTRO' => 'Otra incidencia',
     ];
 
@@ -28,6 +29,7 @@ class Incidencia extends Model
     protected $fillable = [
         'examen_id', 'estudiante_id', 'tipo', 'metodo', 'detalle', 'controlador_id',
         'ingreso_original_at', 'fecha_hora', 'estado', 'revisada_por', 'revisada_at',
+        'evidencia_path', 'suplantador_nombre', 'suplantador_ci', 'suplantador_foto_path',
     ];
 
     protected $casts = [
@@ -49,6 +51,17 @@ class Incidencia extends Model
     public function controlador()
     {
         return $this->belongsTo(User::class, 'controlador_id');
+    }
+
+    /** Foto de prueba (el personal con sesión la ve desde esta ruta). */
+    public function getEvidenciaUrlAttribute(): ?string
+    {
+        return $this->evidencia_path ? route('incidencias.archivo', [$this->id, 'evidencia']) : null;
+    }
+
+    public function getSuplantadorFotoUrlAttribute(): ?string
+    {
+        return $this->suplantador_foto_path ? route('incidencias.archivo', [$this->id, 'suplantador']) : null;
     }
 
     public function getTipoEtiquetaAttribute(): string

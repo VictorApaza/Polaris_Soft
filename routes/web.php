@@ -8,6 +8,7 @@ use App\Http\Controllers\BuscadorEstudiantesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocenteController;
 use App\Http\Controllers\DocenteExamenController;
+use App\Http\Controllers\DocenteMateriaController;
 use App\Http\Controllers\EstudianteController;
 use App\Http\Controllers\EstudiantePortalController;
 use App\Http\Controllers\EstudianteQrController;
@@ -48,14 +49,16 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
 
     Route::resource('estudiantes', EstudianteController::class)->except(['create', 'show', 'edit']);
-    Route::get('/estudiantes-importar', [EstudianteController::class, 'importarForm'])->name('estudiantes.importar.form');
-    Route::post('/estudiantes-importar', [EstudianteController::class, 'importar'])->name('estudiantes.importar');
+    Route::post('/estudiantes/{estudiante}/restablecer-password', [EstudianteController::class, 'restablecerPassword'])->name('estudiantes.password.restablecer');
 
     // Código QR del estudiante (RQ7)
     Route::get('/estudiantes/{estudiante}/qr', [EstudianteQrController::class, 'ver'])->name('estudiantes.qr');
 
     // Materias, docentes y grupos (RQ27)
     Route::resource('materias', MateriaController::class)->only(['index', 'store', 'update', 'destroy']);
+    // Docentes: importación masiva (CSV / Excel) + plantilla
+    Route::get('/docentes-plantilla', [DocenteController::class, 'plantilla'])->name('docentes.plantilla');
+    Route::post('/docentes-importar', [DocenteController::class, 'importar'])->name('docentes.importar');
     Route::resource('docentes', DocenteController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('grupos', GrupoController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('ambientes', AmbienteController::class)->only(['index', 'store', 'update', 'destroy']);
@@ -85,6 +88,13 @@ Route::middleware(['auth', 'role:administrador,docente'])->group(function () {
     Route::post('/examenes/{examen}/habilitados-enviar-qr', [EstudianteQrController::class, 'enviarHabilitados'])->name('habilitaciones.enviar_qr');
 });
 
+// --- Importar estudiantes (CSV / Excel): administrador y docente (el docente solo a sus propios grupos) ---
+Route::middleware(['auth', 'role:administrador,docente'])->group(function () {
+    Route::get('/estudiantes-plantilla', [EstudianteController::class, 'plantilla'])->name('estudiantes.plantilla');
+    Route::get('/estudiantes-importar', [EstudianteController::class, 'importarForm'])->name('estudiantes.importar.form');
+    Route::post('/estudiantes-importar', [EstudianteController::class, 'importar'])->name('estudiantes.importar');
+});
+
 // Página del QR que abre el estudiante desde el enlace firmado de su correo (sin iniciar sesión).
 Route::get('/qr/{estudiante}', [EstudianteQrController::class, 'publico'])->middleware('signed')->name('qr.publico');
 
@@ -92,6 +102,7 @@ Route::get('/qr/{estudiante}', [EstudianteQrController::class, 'publico'])->midd
 Route::middleware(['auth', 'role:docente'])->group(function () {
     Route::get('/docente/dashboard', fn () => view('docente.dashboard'));
     Route::get('/docente/examenes', [DocenteExamenController::class, 'index'])->name('docente.examenes');
+    Route::get('/docente/materias', [DocenteMateriaController::class, 'index'])->name('docente.materias');
 });
 
 // --- Personal de control ---
@@ -99,8 +110,8 @@ Route::middleware(['auth', 'role:control'])->group(function () {
     Route::get('/control/dashboard', fn () => view('control.dashboard'));
 });
 
-// --- Verificación de ingreso ---
-Route::middleware(['auth', 'role:administrador,control'])->group(function () {
+// --- Verificación de ingreso (administrador, control y docente: el docente solo en los exámenes de sus materias) ---
+Route::middleware(['auth', 'role:administrador,control,docente'])->group(function () {
     Route::get('/verificacion', [VerificacionController::class, 'index'])->name('verificacion.index');
     Route::post('/verificacion/verificar', [VerificacionController::class, 'verificar'])->name('verificacion.verificar');
     Route::post('/verificacion/ingreso', [VerificacionController::class, 'ingreso'])->name('verificacion.ingreso');
@@ -112,7 +123,7 @@ Route::middleware(['auth', 'role:administrador,control'])->group(function () {
 });
 
 // Alias antiguo de la verificación: ahora también exige rol (antes cualquier usuario logueado podía usarlo).
-Route::middleware(['auth', 'role:administrador,control'])->group(function () {
+Route::middleware(['auth', 'role:administrador,control,docente'])->group(function () {
     Route::get('/control-ingreso', [VerificacionController::class, 'index'])->name('ingreso.index');
     Route::post('/control-ingreso/verificar', [VerificacionController::class, 'verificar'])->name('ingreso.verificar');
     Route::post('/control-ingreso/ingreso', [VerificacionController::class, 'ingreso'])->name('ingreso.ingreso');
@@ -120,9 +131,11 @@ Route::middleware(['auth', 'role:administrador,control'])->group(function () {
 
 // --- Transparencia de ingreso (RQ8) ---
 // Bitácora inmutable de autorizaciones: auditoría en tiempo real (solo lectura) y registro de la autorización.
-Route::middleware(['auth', 'role:administrador,control'])->group(function () {
+Route::middleware(['auth', 'role:administrador,control,docente'])->group(function () {
     Route::get('/transparencia', [TransparenciaIngresoController::class, 'index'])->name('transparencia.index');
     Route::get('/transparencia/datos', [TransparenciaIngresoController::class, 'datos'])->name('transparencia.datos');
+});
+Route::middleware(['auth', 'role:administrador,control'])->group(function () {
     Route::post('/transparencia/autorizar', [TransparenciaIngresoController::class, 'registrar'])->name('transparencia.registrar');
 });
 
@@ -138,6 +151,8 @@ Route::middleware(['auth', 'role:administrador,docente,control'])->group(functio
 
     // Reportar una incidencia desde la puerta (foto no coincide, suplantación, trampa…)
     Route::post('/incidencias', [IncidenciaController::class, 'store'])->name('incidencias.store');
+    // Foto de prueba o del suplantador guardada en una incidencia ($cual = evidencia | suplantador)
+    Route::get('/incidencias/{incidencia}/archivo/{cual}', [IncidenciaController::class, 'archivo'])->whereIn('cual', ['evidencia', 'suplantador'])->name('incidencias.archivo');
 });
 
 // Revisión de fotos, reportes e incidencias, buscador de estudiantes: administrador y docente.
@@ -165,6 +180,7 @@ Route::prefix('estudiante')->group(function () {
         Route::post('/foto', [EstudiantePortalController::class, 'subirFoto'])->name('estudiante.foto.subir');
         Route::get('/foto', [EstudiantePortalController::class, 'fotoPropia'])->name('estudiante.foto.ver');
         Route::get('/qr', [EstudiantePortalController::class, 'qr'])->name('estudiante.qr');
+        Route::post('/password', [EstudiantePortalController::class, 'cambiarPassword'])->name('estudiante.password');
         Route::post('/salir', [EstudiantePortalController::class, 'logout'])->name('estudiante.logout');
     });
 });

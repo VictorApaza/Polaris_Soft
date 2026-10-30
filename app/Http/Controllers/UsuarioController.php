@@ -28,7 +28,11 @@ class UsuarioController extends Controller
 
     public function index(Request $request)
     {
+        // ?rol=administrador | docente | control: lo usa el menú "Usuarios" para ver cada tipo por separado.
+        $rolFiltro = array_key_exists((string) $request->query('rol'), User::ROLES) ? $request->query('rol') : null;
+
         $usuarios = User::query()
+            ->when($rolFiltro, fn ($q) => $q->where('rol', $rolFiltro))
             ->when($request->filled('buscar'), fn ($q) => $q->where(function ($w) use ($request) {
                 $w->where('name', 'like', "%{$request->buscar}%")
                   ->orWhere('email', 'like', "%{$request->buscar}%");
@@ -38,6 +42,7 @@ class UsuarioController extends Controller
 
         return view('usuarios.index', [
             'usuarios' => $usuarios,
+            'rolFiltro' => $rolFiltro,
             'roles' => User::ROLES,
             'grados' => Grados::OPCIONES,
         ]);

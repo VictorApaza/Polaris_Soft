@@ -7,16 +7,24 @@
     @endphp
 
     <style>
-        .v-wrap { max-width: 1100px; }
-        .v-exam { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; align-items: end; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin-top: 18px; }
+        .v-wrap { max-width: 1280px; }
+        .v-wrap .head p { display: none; }
+        .v-wrap .head h1 { font-size: 22px; }
+        /* Controles a la izquierda y resultado a la derecha: con la cámara activa todo cabe sin bajar. */
+        .v-dos { display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 14px; }
+        .v-dos .v-panel, .v-dos .v-result { margin-top: 0; }
+        .v-solo-manual[hidden] { display: none; }
+        .v-qr-auto { display: none; margin-top: 8px; padding: 8px 12px; border-radius: 10px; background: var(--blue-50); color: var(--blue-700); font-size: 13px; font-weight: 600; }
+        .v-modo-qr .v-qr-auto { display: block; }
+        .v-exam { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; align-items: end; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin-top: 10px; }
         .v-exam label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
         .v-exam select { width: 100%; height: 52px; font-size: 16px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
         .v-aula { background: var(--blue-50); border: 1px solid var(--blue-100); border-radius: 12px; padding: 8px 16px; text-align: center; min-height: 52px; display: flex; flex-direction: column; justify-content: center; }
         .v-aula small { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
         .v-aula b { font-size: 20px; color: var(--blue-700); line-height: 1.1; }
 
-        .v-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
-        .v-tab { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-radius: 14px; border: 2px solid var(--line); background: #fff; cursor: pointer; text-align: left; transition: .12s; min-height: 84px; }
+        .v-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+        .v-tab { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 14px; border: 2px solid var(--line); background: #fff; cursor: pointer; text-align: left; transition: .12s; min-height: 64px; }
         .v-tab:hover { border-color: var(--blue-600); }
         .v-tab .ic { width: 46px; height: 46px; border-radius: 12px; background: var(--soft); color: var(--navy-900); display: grid; place-items: center; flex: none; }
         .v-tab .ic svg { width: 26px; height: 26px; }
@@ -39,7 +47,8 @@
         .v-btn.ok { background: var(--ok); }
         .v-btn.ghost { background: var(--soft); color: var(--text); }
         .v-ayuda { margin-top: 10px; color: var(--muted); font-size: 13px; }
-        #lector-qr { max-width: 420px; margin-top: 14px; }
+        #lector-qr { max-width: 340px; margin-top: 10px; }
+        .v-modo-qr .v-fila input { height: 52px; font-size: 18px; }
 
         .v-result { margin-top: 18px; }
         .v-vacio { background: #fff; border: 2px dashed var(--line); border-radius: 14px; padding: 36px 16px; text-align: center; color: var(--muted); font-size: 16px; }
@@ -83,12 +92,16 @@
         .v-hist .p.no { background: var(--danger-bg); color: var(--danger); }
         .v-hist .p.warn { background: var(--warn-bg); color: var(--warn); }
 
+        @media (max-width: 1000px) {
+            .v-dos { grid-template-columns: 1fr; }
+        }
         @media (max-width: 800px) {
             .v-exam { grid-template-columns: 1fr; }
             .v-tabs { grid-template-columns: 1fr; }
             .v-est { grid-template-columns: 1fr; }
             .v-est .foto-vacia.lg, .v-est img.foto.lg { width: 180px; }
             .v-datos { grid-template-columns: 1fr; }
+            .v-dos { grid-template-columns: 1fr; }
             .v-fila { flex-direction: column; }
             .v-btn { width: 100%; }
         }
@@ -124,7 +137,7 @@
         </section>
 
         {{-- ================= MÉTODO (pestañas grandes) ================= --}}
-        <div class="v-tabs" role="tablist" aria-label="Método de verificación">
+        <div class="v-tabs" id="v-tabs" role="tablist" aria-label="Método de verificación">
             <button type="button" class="v-tab" role="tab" data-metodo="CODIGO_UNIV" aria-selected="true">
                 <span class="ic"><svg class="i"><use href="#i-id"/></svg></span>
                 <span><b>Código universitario</b><small>9 dígitos · lector o teclado</small></span>
@@ -140,15 +153,17 @@
         </div>
 
         {{-- ================= CAMPO DE VERIFICACIÓN ================= --}}
+        <div class="v-dos" id="v-dos">
         <form class="v-panel" id="v-form" autocomplete="off">
             <label class="big" for="v-dato" id="v-etiqueta">Código universitario</label>
             <div class="v-fila">
                 <input id="v-dato" type="text" inputmode="numeric" maxlength="9" placeholder="Escanea o digita el código…" disabled>
-                <button class="v-btn" type="submit" id="v-verificar" disabled>
+                <button class="v-btn v-solo-manual" type="submit" id="v-verificar" disabled>
                     <svg class="i"><use href="#i-check"/></svg> Verificar
                 </button>
             </div>
             <p class="v-ayuda" id="v-ayuda">Presiona Enter o Verificar. Con 9 dígitos se verifica solo.</p>
+            <div class="v-qr-auto" id="v-qr-auto">La verificación es automática: al escanear el QR se verifica solo, sin presionar ningún botón.</div>
 
             <div id="v-camara" style="display:none;margin-top:14px">
                 <button type="button" class="v-btn ghost" id="v-btn-camara" style="height:56px;font-size:16px">Activar cámara para escanear QR</button>
@@ -160,12 +175,46 @@
         <section class="v-result" id="v-resultado" aria-live="assertive">
             <div class="v-vacio">Selecciona un examen y verifica a un estudiante: aquí aparecerán su foto y sus datos.</div>
         </section>
+        </div>
 
         <section class="v-hist" id="v-hist" style="display:none">
             <h3>Últimas verificaciones</h3>
             <ul id="v-hist-lista"></ul>
         </section>
     </div>
+    {{-- ================= SUPLANTADOR: se toman sus datos y su foto ================= --}}
+    <dialog id="modal-suplantador">
+        <form id="form-suplantador" enctype="multipart/form-data" autocomplete="off">
+            <div class="m-head">
+                <span class="ic" style="background:var(--danger-bg);color:var(--danger)"><svg class="i"><use href="#i-alert"/></svg></span>
+                <div><b>Registrar al suplantador</b><small>Datos y foto de la persona que intentó entrar en lugar del estudiante</small></div>
+                <button type="button" class="icon-btn x" aria-label="Cerrar" onclick="this.closest('dialog').close()"><svg class="i"><use href="#i-x"/></svg></button>
+            </div>
+            <div class="m-body">
+                <div class="field">
+                    <label for="sup-nombre">Nombre completo del suplantador <span class="req">*</span></label>
+                    <input id="sup-nombre" name="suplantador_nombre" maxlength="150" required>
+                </div>
+                <div class="field">
+                    <label for="sup-ci">Cédula de identidad <span class="req">*</span></label>
+                    <input id="sup-ci" name="suplantador_ci" maxlength="20" inputmode="numeric" required>
+                </div>
+                <div class="field">
+                    <label for="sup-foto">Foto del suplantador <span class="req">*</span> <i>en el celular abre la cámara</i></label>
+                    <input id="sup-foto" type="file" name="suplantador_foto" accept="image/*" capture="user" required>
+                </div>
+                <div class="field">
+                    <label for="sup-detalle">Detalle <i>opcional</i></label>
+                    <textarea id="sup-detalle" name="detalle" rows="2" maxlength="1000" placeholder="Cómo se detectó, qué dijo…"></textarea>
+                </div>
+                <p id="sup-error" class="err" style="display:none"></p>
+            </div>
+            <div class="m-foot">
+                <button type="button" class="btn ghost" onclick="this.closest('dialog').close()">Cancelar</button>
+                <button type="submit" class="btn" id="sup-guardar" style="background:var(--danger)">Guardar incidencia</button>
+            </div>
+        </form>
+    </dialog>
 @endsection
 
 @push('scripts')
@@ -229,6 +278,17 @@
         return { res, json };
     }
 
+    async function enviarFormulario(url, formData) {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            body: formData,
+        });
+        let json = {};
+        try { json = await res.json(); } catch (e) { /* sin cuerpo */ }
+        return { res, json };
+    }
+
     // ---------- sonidos (Web Audio, sin archivos) ----------
     let ctx = null;
     function tonos(lista, tipoOnda) {
@@ -264,6 +324,9 @@
         ayuda.textContent = c.ayuda;
         dato.value = '';
         bloqueCamara.style.display = m === 'QR' ? 'block' : 'none';
+        // Con QR la verificación es automática: se oculta el botón "Verificar" y el panel se hace compacto.
+        document.getElementById('v-dos').classList.toggle('v-modo-qr', m === 'QR');
+        btnVerificar.hidden = (m === 'QR');
         if (m !== 'QR') detenerCamara();
         dato.focus();
     }
@@ -290,6 +353,11 @@
         if (lector) { lector.stop().catch(() => {}).finally(() => { lector = null; }); }
         btnCamara.textContent = 'Activar cámara para escanear QR';
     }
+    /** Deja a la vista las pestañas, la cámara y el resultado, para no tener que bajar la pantalla. */
+    function mostrarTodo() {
+        const t = document.getElementById('v-tabs');
+        if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     btnCamara.addEventListener('click', async () => {
         if (lector) { detenerCamara(); return; }
         if (!examenId()) { mostrarMensaje('warn', 'Selecciona un examen antes de escanear.'); return; }
@@ -298,7 +366,8 @@
         btnCamara.textContent = 'Detener cámara';
         let leyendo = false;
         try {
-            await lector.start({ facingMode: 'environment' }, { fps: 10, qrbox: 240 }, (texto) => {
+            mostrarTodo();
+            await lector.start({ facingMode: 'environment' }, { fps: 10, qrbox: 200 }, (texto) => {
                 if (leyendo) return;
                 leyendo = true;
                 setTimeout(() => { leyendo = false; }, 2500);
@@ -372,6 +441,7 @@
             habilitado:           { clase: 'ok',     icono: '✓', titulo: 'HABILITADO',       sub: 'Puede ingresar al examen', sonido: sonidoOk },
             no_habilitado:        { clase: 'no',     icono: '✕', titulo: 'NO HABILITADO',    sub: d.motivo ? 'Motivo: ' + d.motivo : d.mensaje, sonido: sonidoError },
             inactivo:             { clase: 'no',     icono: '✕', titulo: 'ESTUDIANTE NO ACTIVO', sub: d.motivo || d.mensaje, sonido: sonidoError },
+            sin_foto:             { clase: 'no',     icono: '📷', titulo: 'SIN FOTO VÁLIDA',  sub: 'No puede ingresar: la foto es obligatoria', sonido: sonidoError },
             codigo_no_registrado: { clase: 'no',     icono: '?', titulo: 'NO REGISTRADO',    sub: d.mensaje, sonido: sonidoError },
             ya_ingreso:           { clase: 'warn',   icono: '!', titulo: 'EL ESTUDIANTE YA INGRESÓ',
                                     sub: 'Ingresó el ' + (d.fecha_hora_local || '—') + (d.ambiente ? ' · Aula ' + d.ambiente : ''), sonido: sonidoAlerta },
@@ -380,6 +450,7 @@
         }[d.tipo] || { clase: 'warn', icono: '!', titulo: 'RESULTADO', sub: d.mensaje, sonido: sonidoError };
 
         info.sonido();
+        if (window.matchMedia('(max-width: 1000px)').matches) resultado.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         ultimo = est ? { estudiante: est, tipo: d.tipo, codigo: d.codigo || est.codigo } : null;
 
         resultado.replaceChildren();
@@ -454,13 +525,14 @@
         if (d.motivo_inhabilitacion) {
             card.appendChild(el('div', 'v-aviso err', 'Motivo de inhabilitación: ' + d.motivo_inhabilitacion));
         }
+        if (d.tipo === 'sin_foto') {
+            card.appendChild(el('div', 'v-aviso err', d.mensaje + ' Pídele su carnet y avisa al docente; puede subir su foto desde el portal del estudiante.'));
+        }
         if (d.tipo === 'inactivo') {
             card.appendChild(el('div', 'v-aviso err', d.mensaje + ' No se puede autorizar su ingreso.'));
         }
         if (est.foto_estado === 'OBSERVADA') {
             card.appendChild(el('div', 'v-aviso warn', 'La foto fue observada por un docente: ' + (est.foto_observacion || '') + '. Verifica su identidad con el carnet.'));
-        } else if (!est.foto_url) {
-            card.appendChild(el('div', 'v-aviso warn', 'El estudiante no tiene foto: verifica su identidad con el carnet.'));
         }
 
         // Acciones
@@ -477,6 +549,7 @@
         const mini = (texto, clase, fn) => { const b = el('button', 'btn-mini ' + clase, texto); b.type = 'button'; b.addEventListener('click', fn); return b; };
         acc.appendChild(mini('La foto no coincide', 'rojo', () => reportar('FOTO_NO_COINCIDE', 'La foto del sistema no coincide con la persona.')));
         acc.appendChild(mini('Sospecha de suplantación', 'rojo', () => reportar('SUPLANTACION_SOSPECHADA', 'El personal sospecha de suplantación.')));
+        acc.appendChild(mini('Confirmar suplantación (tomar datos y foto)', 'rojo', () => abrirSuplantador()));
         acc.appendChild(mini('Otra incidencia…', '', () => {
             const t = prompt('Describe la incidencia:');
             if (t && t.trim()) reportar('OTRO', t.trim());
@@ -600,6 +673,51 @@
             alert('Error de conexión con el servidor.');
         }
     }
+
+    // ---------- suplantador: nombre, cédula y foto de quien intentó entrar ----------
+    const dlgSup = document.getElementById('modal-suplantador');
+    const formSup = document.getElementById('form-suplantador');
+    const errSup = document.getElementById('sup-error');
+
+    function abrirSuplantador() {
+        if (!ultimo || !examenId()) return;
+        formSup.reset();
+        errSup.style.display = 'none';
+        dlgSup.showModal();
+    }
+
+    formSup.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        if (!ultimo || !examenId()) return;
+        const guardar = document.getElementById('sup-guardar');
+        guardar.disabled = true;
+        errSup.style.display = 'none';
+
+        const datos = new FormData(formSup);
+        datos.append('examen_id', examenId());
+        datos.append('estudiante_id', ultimo.estudiante.id);
+        datos.append('tipo', 'SUPLANTACION_CONFIRMADA');
+        datos.append('metodo', METODOS[metodo].bitacora);
+        if (!datos.get('detalle')) datos.set('detalle', 'Suplantación confirmada por el personal: se tomaron los datos y la foto del suplantador.');
+
+        try {
+            const { res, json } = await enviarFormulario(URL_INCIDENCIA, datos);
+            if (res.ok) {
+                dlgSup.close();
+                sonidoAlerta();
+                alert('Suplantador registrado con su foto. El docente lo verá en el reporte del examen.');
+            } else {
+                const msg = json.errors ? Object.values(json.errors)[0][0] : (json.message || 'No se pudo registrar.');
+                errSup.textContent = msg;
+                errSup.style.display = 'block';
+            }
+        } catch (e) {
+            errSup.textContent = 'Error de conexión con el servidor. Inténtalo de nuevo.';
+            errSup.style.display = 'block';
+        } finally {
+            guardar.disabled = false;
+        }
+    });
 
     // ---------- historial de la sesión ----------
     function agregarHistorial(info, nombre) {
