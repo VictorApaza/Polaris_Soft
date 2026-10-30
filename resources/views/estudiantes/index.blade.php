@@ -94,6 +94,12 @@
                                     <svg class="i"><use href="#i-id"/></svg></a>
                                 <a class="icon-btn" href="{{ route('asignaciones.create', $e) }}" title="Asignar materia, grupo y docente" aria-label="Asignar materia, grupo y docente">
                                     <svg class="i"><use href="#i-exams"/></svg></a>
+                                <form method="POST" action="{{ route('estudiantes.password.restablecer', $e) }}">
+                                    @csrf
+                                    <button class="icon-btn" type="button" title="Restablecer contraseña (vuelve a ser su cédula)" aria-label="Restablecer contraseña"
+                                            onclick="if (confirm('¿Restablecer la contraseña de {{ $e->nombres }} {{ $e->apellidos }}? Volverá a ser su cédula de identidad.')) this.closest('form').submit()">
+                                        <svg class="i"><use href="#i-lock"/></svg></button>
+                                </form>
                                 <form method="POST" action="{{ $url }}">
                                     @csrf @method('DELETE')
                                     <button class="icon-btn danger" type="button" title="Eliminar" aria-label="Eliminar"

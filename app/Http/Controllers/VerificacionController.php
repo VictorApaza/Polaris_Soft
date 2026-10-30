@@ -27,9 +27,10 @@ class VerificacionController extends Controller
     {
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $examenes = Examen::with(['materia', 'asignatura'])
+            ->deDocente($request->user())
             ->where('estado', '!=', 'finalizado')
             ->orderBy('fecha')
             ->orderBy('hora_inicio')
@@ -97,6 +98,9 @@ class VerificacionController extends Controller
         ]);
 
         $examen = Examen::findOrFail($data['id_examen']);
+        if (! $examen->permiteA($request->user())) {
+            return response()->json(['message' => 'Ese examen no es de una de tus materias.'], 403);
+        }
         $tipoBitacora = self::TIPO_BITACORA[$metodo];
 
         // ---- 1) Identificar al estudiante según el método ----
@@ -236,6 +240,17 @@ class VerificacionController extends Controller
                 ['motivo_inhabilitacion' => $motivo, 'motivo' => $motivo ?? 'Inhabilitado para este examen.'] + $resumen);
         }
 
+        // ---- 5) La foto es obligatoria: sin foto válida no se puede dejar entrar (no hay con qué comprobar su identidad) ----
+        if (! $estudiante->foto_valida) {
+            $esObservada = $estudiante->foto_estado === 'OBSERVADA';
+            $mensaje = $esObservada
+                ? 'La foto del estudiante fue observada y no se corrigió. No puede ingresar hasta tener una foto válida.'
+                : 'El estudiante no tiene foto registrada. No puede ingresar hasta subir una foto válida.';
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodo, 'SIN_FOTO_VALIDA');
+
+            return $cerrar('SIN_FOTO', 'sin_foto', $mensaje, 422, $estudiante, ['motivo' => $mensaje, 'ambiente' => $examen->ambiente, 'alerta' => true] + $resumen, esIntento: false);
+        }
+
         return $cerrar('HABILITADO', 'habilitado', 'Estudiante habilitado para este examen.', 200, $estudiante,
             ['codigo' => $estudiante->codigo_universitario, 'id_habilitacion' => $habilitacion->id, 'ambiente' => $examen->ambiente] + $resumen, esIntento: false);
     }
@@ -259,6 +274,10 @@ class VerificacionController extends Controller
         $examenId = (int) ($data['id_examen'] ?? $data['examen_id']);
         $estudiante = Estudiante::findOrFail($estudianteId);
         $examen = Examen::findOrFail($examenId);
+
+        if (! $examen->permiteA($request->user())) {
+            return response()->json(['mensaje' => 'Ese examen no es de una de tus materias.'], 403);
+        }
 
         if ($request->filled('codigo_universitario')
             && trim((string) $request->codigo_universitario) !== trim((string) $estudiante->codigo_universitario)) {
@@ -316,6 +335,14 @@ class VerificacionController extends Controller
             $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, 'INGRESO_DUPLICADO');
 
             return $this->respuestaYaRegistrado($previo, $estudiante, $examen);
+        }
+
+        // La foto es obligatoria también al registrar el ingreso (el servidor no confía en lo que muestre la pantalla).
+        if (! $estudiante->foto_valida) {
+            $mensaje = 'El estudiante no tiene una foto válida registrada, por eso no se puede autorizar su ingreso.';
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, 'SIN_FOTO_VALIDA');
+
+            return response()->json(['tipo' => 'sin_foto', 'mensaje' => $mensaje, 'motivo' => $mensaje], 422);
         }
 
         // La fecha y la hora las pone el servidor (America/La_Paz); cualquier fecha enviada por el cliente se ignora.

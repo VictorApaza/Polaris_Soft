@@ -16,6 +16,8 @@ class Estudiante extends Model
         'nombres', 'apellidos', 'carrera', 'correo_institucional', 'estado',
     ];
 
+    protected $hidden = ['password'];
+
     public const FOTO_ESTADOS = [
         'SIN_FOTO' => 'Sin foto',
         'PENDIENTE' => 'Pendiente de revisión',

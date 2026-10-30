@@ -6,7 +6,7 @@
 
     <div class="head">
         <div>
-            <h1>Gestión de usuarios</h1>
+            <h1>{{ $rolFiltro ? ['administrador' => 'Administradores', 'docente' => 'Cuentas de docentes', 'control' => 'Personal de control / auxiliares'][$rolFiltro] : 'Gestión de usuarios' }}</h1>
             <p>Administrar usuarios y roles del sistema.</p>
         </div>
         <button type="button" class="btn" id="btn-nuevo-usuario"><svg class="i"><use href="#i-user-plus"/></svg> Nuevo usuario</button>
@@ -17,6 +17,7 @@
 
     <section class="card" style="margin-top:16px">
         <form class="toolbar two" method="GET" action="{{ route('usuarios.index') }}" style="margin:0;padding:14px 16px;align-items:center">
+            @if ($rolFiltro)<input type="hidden" name="rol" value="{{ $rolFiltro }}">@endif
             <label class="search">
                 <svg class="i"><use href="#i-search"/></svg>
                 <input type="search" name="buscar" value="{{ request('buscar') }}" placeholder="Buscar por nombre o correo…" aria-label="Buscar usuario">
@@ -128,7 +129,7 @@
                 <p class="muted" id="u-pass-hint" style="font-size:12px;margin-top:-6px" hidden>Deja la contraseña vacía si no quieres cambiarla.</p>
                 <div class="field">
                     <label for="u-rol">Rol de usuario <span class="req">*</span></label>
-                    <select id="u-rol" name="rol" data-default="docente" required>
+                    <select id="u-rol" name="rol" data-default="{{ $rolFiltro ?? 'docente' }}" required>
                         @foreach ($roles as $v => $t)
                             <option value="{{ $v }}" @selected(old('rol', 'docente') === $v)>{{ $t }}</option>
                         @endforeach

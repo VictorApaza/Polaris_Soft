@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Docente;
 use App\Models\Estudiante;
 use App\Models\Materia;
 use App\Support\Catalogo;
@@ -16,7 +17,10 @@ class MateriaController extends Controller
 
     public function index()
     {
-        $materias = Materia::withCount('grupos')->orderBy('nombre')->get();
+        $materias = Materia::withCount('grupos')
+            ->with(['grupos' => fn ($q) => $q->orderBy('nombre'), 'grupos.docente'])
+            ->orderBy('nombre')->get();
+        $docentes = Docente::orderBy('nombre')->orderBy('apellido')->get();
         $carreras = collect(Catalogo::FACULTADES)->flatten()
             ->merge(Estudiante::whereNotNull('carrera')->distinct()->pluck('carrera'))
             ->merge(Materia::whereNotNull('carrera')->distinct()->pluck('carrera'))
@@ -24,7 +28,7 @@ class MateriaController extends Controller
 
         $facultades = Catalogo::FACULTADES;
 
-        return view('materias.index', compact('materias', 'carreras', 'facultades'));
+        return view('materias.index', compact('materias', 'carreras', 'facultades', 'docentes'));
     }
 
     public function store(Request $request)

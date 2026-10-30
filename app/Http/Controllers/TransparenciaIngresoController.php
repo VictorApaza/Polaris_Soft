@@ -38,6 +38,7 @@ class TransparenciaIngresoController extends Controller
             'metodos' => TransparenciaIngreso::METODOS,
             // Opciones de los filtros: solo lo que realmente aparece en la bitácora.
             'examenes' => TransparenciaIngreso::query()
+                ->when($request->user()->rol === 'docente', fn ($q) => $q->whereIn('examen_id', Examen::query()->deDocente($request->user())->pluck('examenes.id')))
                 ->select('examen_id', 'examen_descripcion')->distinct()
                 ->orderByDesc('examen_id')->get(),
             'ambientes' => TransparenciaIngreso::query()
@@ -132,6 +133,11 @@ class TransparenciaIngresoController extends Controller
     private function datosDeAuditoria(array $filtros): array
     {
         $consulta = TransparenciaIngreso::query()->filtrar($filtros);
+
+        // El docente solo ve los ingresos de los exámenes de sus materias.
+        if (auth()->user()?->rol === 'docente') {
+            $consulta->whereIn('examen_id', Examen::query()->deDocente(auth()->user())->pluck('examenes.id'));
+        }
 
         $total = (clone $consulta)->count();
 

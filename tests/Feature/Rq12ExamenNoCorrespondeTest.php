@@ -79,6 +79,8 @@ class Rq12ExamenNoCorrespondeTest extends TestCase
             'codigo_universitario' => $codigo, 'documento_identidad' => $ci, 'nombres' => 'Nombre'.$codigo,
             'apellidos' => 'Apellido'.$codigo, 'carrera' => 'Carrera T12', 'estado' => 'ACTIVO',
         ]);
+        // La foto es obligatoria para poder verificar el ingreso.
+        $e->forceFill(['foto_path' => 'fotos_estudiantes/prueba.jpg', 'foto_estado' => 'APROBADA'])->save();
         foreach ($asignaturas as $a) {
             \DB::table('estudiante_asignatura')->insert([
                 'id_estudiante' => $e->id_estudiante, 'id_asignatura' => $a->id_asignatura, 'gestion' => '2026-II', 'estado' => 'ACTIVO',
@@ -194,5 +196,15 @@ class Rq12ExamenNoCorrespondeTest extends TestCase
         ]);
 
         $this->verificar($this->deOtraMateria, 'CODIGO_UNIV', $huerfano)->assertStatus(422)->assertJsonPath('tipo', 'no_habilitado');
+    }
+
+    public function test_sin_foto_valida_no_puede_ingresar(): void
+    {
+        $this->habilitado->forceFill(['foto_path' => null, 'foto_estado' => 'SIN_FOTO'])->save();
+
+        $this->verificar($this->habilitado)->assertStatus(422)->assertJsonPath('tipo', 'sin_foto');
+
+        $cuerpo = ['id_estudiante' => $this->habilitado->id_estudiante, 'id_examen' => $this->examenA->id];
+        $this->actingAs($this->control)->postJson('/verificacion/ingreso', $cuerpo)->assertStatus(422)->assertJsonPath('tipo', 'sin_foto');
     }
 }

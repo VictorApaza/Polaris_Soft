@@ -17,6 +17,8 @@ class HabilitacionController extends Controller
     /** Pantalla: estudiantes candidatos del examen (filtrables por grupo si el examen es por materia). */
     public function index(Request $request, Examen $examen)
     {
+        $this->autorizarExamen($request, $examen);
+
         // Los exámenes creados con el formulario nuevo se ligan a una asignatura (sin grupos);
         // los anteriores se ligan a una materia con grupos.
         $usaGrupos = ! $examen->asignatura_id;
@@ -59,6 +61,8 @@ class HabilitacionController extends Controller
      */
     public function habilitarMasiva(Request $request, Examen $examen)
     {
+        $this->autorizarExamen($request, $examen);
+
         $request->validate([
             'estudiante_ids' => ['required_without:todos', 'array'],
             'estudiante_ids.*' => ['integer', Rule::exists('estudiante', 'id_estudiante')],
@@ -90,6 +94,8 @@ class HabilitacionController extends Controller
     /** Registra el motivo y deja a un estudiante inhabilitado para este examen puntual. */
     public function inhabilitar(Request $request, Examen $examen, Estudiante $estudiante)
     {
+        $this->autorizarExamen($request, $examen);
+
         $data = $request->validate([
             'motivo_inhabilitacion_id' => ['required', Rule::exists('motivo_inhabilitacion', 'id')],
             'observacion' => ['nullable', 'string', 'max:500'],
@@ -123,12 +129,20 @@ class HabilitacionController extends Controller
     }
 
     /** Vuelve a dejar al estudiante "sin evaluar" para este examen (borra la decisión). */
-    public function quitar(Examen $examen, Estudiante $estudiante)
+    public function quitar(Request $request, Examen $examen, Estudiante $estudiante)
     {
+        $this->autorizarExamen($request, $examen);
+
         Habilitacion::where('estudiante_id', $estudiante->getKey())
             ->where('examen_id', $examen->id)
             ->delete();
 
         return back()->with('status', 'Se quitó la decisión anterior; el estudiante vuelve a estar sin evaluar.');
+    }
+
+    /** El docente solo puede trabajar con los exámenes de sus propias materias. */
+    private function autorizarExamen(Request $request, Examen $examen): void
+    {
+        abort_unless($examen->permiteA($request->user()), 403, 'Ese examen no es de una de tus materias.');
     }
 }

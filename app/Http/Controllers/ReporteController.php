@@ -8,14 +8,16 @@ use App\Models\Habilitacion;
 use App\Models\Incidencia;
 use App\Models\MotivoInhabilitacion;
 use App\Models\TransparenciaIngreso;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /** Reportes para el docente y el administrador: quiénes entraron, quiénes no, inhabilitados y por qué, incidencias. */
 class ReporteController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $examenes = Examen::with(['asignatura', 'materia'])
+            ->deDocente($request->user())
             ->orderByDesc('fecha')->orderByDesc('hora_inicio')
             ->paginate(10);
 
@@ -55,8 +57,10 @@ class ReporteController extends Controller
         return view('reportes.index', ['examenes' => $examenes, 'filas' => $filas]);
     }
 
-    public function show(Examen $examen)
+    public function show(Request $request, Examen $examen)
     {
+        abort_unless($examen->permiteA($request->user()), 403, 'Ese examen no es de una de tus materias.');
+
         $examen->loadMissing(['asignatura', 'materia']);
 
         $ingresos = TransparenciaIngreso::where('examen_id', $examen->id)
@@ -82,8 +86,13 @@ class ReporteController extends Controller
         $fotos = Estudiante::whereIn('id_estudiante', $candidatos)
             ->selectRaw('foto_estado, COUNT(*) as total')->groupBy('foto_estado')->pluck('total', 'foto_estado');
 
+        $estudiantesExamen = Estudiante::whereIn('id_estudiante', $candidatos)
+            ->orderBy('apellidos')->orderBy('nombres')
+            ->get(['id_estudiante', 'codigo_universitario', 'nombres', 'apellidos']);
+
         return view('reportes.show', [
             'examen' => $examen,
+            'estudiantesExamen' => $estudiantesExamen,
             'totalCandidatos' => count($candidatos),
             'ingresos' => $ingresos,
             'habilitados' => $habilitados->count(),

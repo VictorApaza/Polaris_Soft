@@ -3,15 +3,20 @@
 
 @section('content')
     <nav class="crumb" aria-label="Ruta">
-        <a href="{{ url('/dashboard') }}">Inicio</a> › <a href="{{ route('estudiantes.index') }}">Estudiantes</a> › <b>Importar</b>
+        <a href="{{ url('/dashboard') }}">Inicio</a> ›
+        @if ($esDocente)<a href="{{ route('docente.materias') }}">Materias</a>@else<a href="{{ route('estudiantes.index') }}">Estudiantes</a>@endif
+        › <b>Importar</b>
     </nav>
 
     <div class="head">
         <div>
-            <h1>Importar estudiantes desde CSV</h1>
+            <h1>Importar estudiantes desde CSV o Excel</h1>
             <p>Sube una lista de estudiantes y asígnalos de una sola vez a una materia, grupo y docente.</p>
         </div>
-        <a class="btn ghost" href="{{ route('estudiantes.index') }}">‹ Volver a estudiantes</a>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <a class="btn ghost" href="{{ route('estudiantes.plantilla') }}">⬇ Descargar plantilla CSV</a>
+            <a class="btn ghost" href="{{ $esDocente ? route('docente.materias') : route('estudiantes.index') }}">‹ Volver</a>
+        </div>
     </div>
 
     @if (session('status')) <div class="flash" role="status">{{ session('status') }}</div> @endif
@@ -37,6 +42,7 @@
             @csrf
             <b style="color:var(--navy-900)">Destino de la importación</b>
 
+            @unless ($esDocente)
             <div class="field">
                 <label for="i-facultad">Facultad <span class="req">*</span></label>
                 <select id="i-facultad" name="facultad" required>
@@ -56,10 +62,12 @@
                 @error('carrera')<p class="err">{{ $message }}</p>@enderror
             </div>
 
+            @endunless
+
             <div class="field">
                 <label for="i-materia">Materia <span class="req">*</span></label>
                 <select id="i-materia" name="materia_id" required>
-                    <option value="">Primero elija la carrera…</option>
+                    <option value="">{{ $esDocente ? 'Seleccione la materia…' : 'Primero elija la carrera…' }}</option>
                 </select>
                 @error('materia_id')<p class="err">{{ $message }}</p>@enderror
             </div>
@@ -73,8 +81,8 @@
             </div>
 
             <div class="field">
-                <label for="i-archivo">Archivo CSV <span class="req">*</span></label>
-                <input id="i-archivo" type="file" name="archivo" accept=".csv,.txt" required>
+                <label for="i-archivo">Archivo CSV o Excel (.xlsx) <span class="req">*</span></label>
+                <input id="i-archivo" type="file" name="archivo" accept=".csv,.txt,.xlsx" required>
                 @error('archivo')<p class="err">{{ $message }}</p>@enderror
             </div>
 
@@ -84,9 +92,9 @@
         {{-- Instrucciones --}}
         <section class="card" style="padding:20px;display:grid;gap:14px">
             <div>
-                <b style="color:var(--navy-900)">Formato del archivo CSV</b>
+                <b style="color:var(--navy-900)">Formato del archivo</b>
                 <p class="muted" style="margin-top:4px">
-                    La primera fila debe ser el encabezado, con exactamente estas columnas, separadas por comas:
+                    La primera fila debe ser el encabezado, con exactamente estas columnas, separadas por coma o punto y coma (la plantilla ya viene lista):
                 </p>
             </div>
             <div class="scroll">
@@ -120,6 +128,7 @@
     const MATERIAS = @json($materias);  // [{id, nombre, sigla, carrera}, ...]
     const GRUPOS = @json($grupos);      // [{id, nombre, materia_id, docente: {nombre, apellido} | null}, ...]
 
+    const ES_DOCENTE = @json($esDocente);
     const selFacultad = document.getElementById('i-facultad');
     const selCarrera = document.getElementById('i-carrera');
     const selMateria = document.getElementById('i-materia');
@@ -133,7 +142,7 @@
     }
 
     function cargarMaterias() {
-        const lista = MATERIAS.filter(m => m.carrera === selCarrera.value);
+        const lista = ES_DOCENTE ? MATERIAS : MATERIAS.filter(m => m.carrera === selCarrera.value);
         selMateria.innerHTML = '<option value="">' + (lista.length ? 'Seleccione la materia…' : 'No hay materias para esa carrera…') + '</option>'
             + lista.map(m => `<option value="${m.id}">${m.nombre}${m.sigla ? ' (' + m.sigla + ')' : ''}</option>`).join('');
         cargarGrupos();
@@ -148,13 +157,19 @@
             }).join('');
     }
 
-    selFacultad.addEventListener('change', cargarCarreras);
-    selCarrera.addEventListener('change', cargarMaterias);
+    if (!ES_DOCENTE) {
+        selFacultad.addEventListener('change', cargarCarreras);
+        selCarrera.addEventListener('change', cargarMaterias);
+    }
     selMateria.addEventListener('change', cargarGrupos);
 
     // Si el formulario vuelve tras un error, se restauran las selecciones anteriores.
     const previos = { facultad: @json(old('facultad')), carrera: @json(old('carrera')), materia_id: @json(old('materia_id')), grupo_id: @json(old('grupo_id')) };
-    if (previos.facultad) {
+    if (ES_DOCENTE) {
+        cargarMaterias();
+        if (previos.materia_id) { selMateria.value = previos.materia_id; cargarGrupos(); }
+        if (previos.grupo_id) { selGrupo.value = previos.grupo_id; }
+    } else if (previos.facultad) {
         selFacultad.value = previos.facultad;
         cargarCarreras();
         if (previos.carrera) { selCarrera.value = previos.carrera; cargarMaterias(); }

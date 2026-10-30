@@ -31,5 +31,6 @@
 <main class="portal-main">
     @yield('content')
 </main>
+@stack('scripts')
 </body>
 </html>
