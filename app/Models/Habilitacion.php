@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\DB;
 class Habilitacion extends Model
 {
     protected $table = 'habilitacion';
+
     protected $primaryKey = 'id_habilitacion';
+
     public $timestamps = true;
 
     protected $fillable = [
@@ -40,13 +42,17 @@ class Habilitacion extends Model
      *  - Examen ligado a una asignatura (formulario nuevo): inscritos en esa asignatura, de la carrera del examen.
      *  - Examen ligado a una materia (modelo anterior): asignados a la materia; si se indica grupo, solo los de ese grupo.
      */
-    public static function candidatosIds(Examen $examen, ?int $grupoId = null): array
+    public static function candidatosIds(Examen $examen, int $grupoId = null): array
     {
         if ($examen->asignatura_id) {
             return DB::table('estudiante_asignatura as ea')
                 ->join('estudiante as e', 'e.id_estudiante', '=', 'ea.id_estudiante')
                 ->where('ea.id_asignatura', $examen->asignatura_id)
+                ->where('ea.estado', 'ACTIVO')
                 ->when($examen->carrera, fn ($q) => $q->where('e.carrera', $examen->carrera))
+                ->when($grupoId, fn ($q) => $q->whereIn('ea.id_estudiante', Asignacion::query()
+                    ->where('materia_id', $examen->materiaDeAsignacion()?->id)
+                    ->where('grupo_id', $grupoId)->select('estudiante_id')))
                 ->pluck('ea.id_estudiante')->unique()->values()->all();
         }
 
@@ -64,7 +70,7 @@ class Habilitacion extends Model
     }
 
     /** Candidatos del examen; si se indica grupo (solo modelo por materia), solo los de ese grupo. */
-    public static function idsDelGrupo(Examen $examen, ?int $grupoId = null): array
+    public static function idsDelGrupo(Examen $examen, int $grupoId = null): array
     {
         return static::candidatosIds($examen, $grupoId);
     }

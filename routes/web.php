@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccesoLogController;
 use App\Http\Controllers\AsignacionController;
+use App\Http\Controllers\AsignacionApiController;
 use App\Http\Controllers\AmbienteController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BuscadorEstudiantesController;
@@ -49,6 +50,8 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
 
     Route::resource('estudiantes', EstudianteController::class)->except(['create', 'show', 'edit']);
+    Route::get('/estudiantes/{estudiante}/asignaciones/create', [AsignacionController::class, 'create'])
+        ->whereNumber('estudiante');
     Route::post('/estudiantes/{estudiante}/restablecer-password', [EstudianteController::class, 'restablecerPassword'])->name('estudiantes.password.restablecer');
 
     // Código QR del estudiante (RQ7)
@@ -67,6 +70,20 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::get('/estudiantes/{estudiante}/asignaciones', [AsignacionController::class, 'create'])->name('asignaciones.create');
     Route::post('/estudiantes/{estudiante}/asignaciones', [AsignacionController::class, 'store'])->name('asignaciones.store');
     Route::delete('/asignaciones/{asignacion}', [AsignacionController::class, 'destroy'])->name('asignaciones.destroy');
+
+    // Estas rutas conservan la sesión y la protección CSRF de la aplicación.
+    Route::prefix('api')->name('api.')->group(function () {
+        Route::get('/materias', [AsignacionApiController::class, 'materias'])->name('materias.index');
+        Route::get('/materias/{materia}/grupos', [AsignacionApiController::class, 'grupos'])
+            ->whereNumber('materia')
+            ->name('materias.grupos');
+        Route::get('/grupos/{grupo}/docentes', [AsignacionApiController::class, 'docentes'])
+            ->whereNumber('grupo')
+            ->name('grupos.docentes');
+        Route::post('/estudiantes/{estudiante}/asignaciones', [AsignacionApiController::class, 'store'])
+            ->whereNumber('estudiante')
+            ->name('estudiantes.asignaciones.store');
+    });
 
     Route::resource('examenes', ExamenController::class)
         ->parameters(['examenes' => 'examen'])
@@ -107,7 +124,7 @@ Route::middleware(['auth', 'role:docente'])->group(function () {
 
 // --- Personal de control ---
 Route::middleware(['auth', 'role:control'])->group(function () {
-    Route::get('/control/dashboard', fn () => view('control.dashboard'));
+    Route::redirect('/control/dashboard', '/verificacion');
 });
 
 // --- Verificación de ingreso (administrador, control y docente: el docente solo en los exámenes de sus materias) ---
