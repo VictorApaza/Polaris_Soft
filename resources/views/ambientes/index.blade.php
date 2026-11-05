@@ -7,7 +7,7 @@
     <div class="head">
         <div>
             <h1>Gestión de ambientes</h1>
-            <p>Registra las aulas y su capacidad para usarlas al programar exámenes.</p>
+            <p>Registra las aulas, su ubicación y capacidad para usarlas al programar exámenes.</p>
         </div>
         <button type="button" class="btn" id="btn-nuevo"><svg class="i"><use href="#i-plus"/></svg> Nuevo ambiente</button>
     </div>
@@ -17,17 +17,18 @@
     <section class="card" style="margin-top:20px">
         <div class="scroll">
             <table>
-                <thead><tr><th>Ambiente / Aula</th><th>Capacidad</th><th style="text-align:right">Acciones</th></tr></thead>
+                <thead><tr><th>Ambiente / Aula</th><th>Ubicación</th><th>Capacidad</th><th style="text-align:right">Acciones</th></tr></thead>
                 <tbody>
                 @forelse ($ambientes as $ambiente)
                     @php $url = route('ambientes.update', $ambiente); @endphp
                     <tr>
                         <td class="strong">{{ $ambiente->nombre }}</td>
+                        <td>{{ $ambiente->ubicacion ?: '—' }}</td>
                         <td class="num">{{ $ambiente->capacidad }} personas</td>
                         <td>
                             <div class="actions">
                                 <button type="button" class="icon-btn" title="Editar" aria-label="Editar"
-                                        data-edit="{{ json_encode($ambiente->only(['nombre', 'capacidad'])) }}" data-url="{{ $url }}" data-id="{{ $ambiente->id }}">
+                                        data-edit="{{ json_encode($ambiente->only(['nombre', 'ubicacion', 'capacidad'])) }}" data-url="{{ $url }}" data-id="{{ $ambiente->id }}">
                                     <svg class="i"><use href="#i-edit"/></svg></button>
                                 <form method="POST" action="{{ route('ambientes.destroy', $ambiente) }}">
                                     @csrf @method('DELETE')
@@ -39,7 +40,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="3" class="empty">Aún no hay ambientes registrados.</td></tr>
+                    <tr><td colspan="4" class="empty">Aún no hay ambientes registrados.</td></tr>
                 @endforelse
                 </tbody>
             </table>
@@ -55,7 +56,7 @@
             <input type="hidden" name="_editing" value="{{ old('_editing') }}">
             <div class="m-head">
                 <span class="ic"><svg class="i"><use href="#i-building"/></svg></span>
-                <div><b data-title>Registrar ambiente</b><small>Aula y capacidad disponible</small></div>
+                <div><b data-title>Registrar ambiente</b><small>Aula, ubicación y capacidad disponible</small></div>
                 <button type="button" class="icon-btn x" aria-label="Cerrar" onclick="this.closest('dialog').close()"><svg class="i"><use href="#i-x"/></svg></button>
             </div>
             <div class="m-body">
@@ -63,6 +64,11 @@
                     <label for="a-nombre">Ambiente / Aula <span class="req">*</span></label>
                     <input id="a-nombre" name="nombre" value="{{ old('nombre') }}" placeholder="Edificio Central 102A" maxlength="100" required>
                     @error('nombre')<p class="err">{{ $message }}</p>@enderror
+                </div>
+                <div class="field">
+                    <label for="a-ubicacion">Ubicación</label>
+                    <input id="a-ubicacion" name="ubicacion" value="{{ old('ubicacion') }}" placeholder="Planta baja, Bloque Central" maxlength="160">
+                    @error('ubicacion')<p class="err">{{ $message }}</p>@enderror
                 </div>
                 <div class="field">
                     <label for="a-capacidad">Capacidad <span class="req">*</span></label>

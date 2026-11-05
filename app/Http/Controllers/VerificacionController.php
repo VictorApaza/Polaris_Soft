@@ -35,8 +35,9 @@ class VerificacionController extends Controller
             ->orderBy('fecha')
             ->orderBy('hora_inicio')
             ->get();
+        $ambientes = Ambiente::orderBy('nombre')->get();
 
-        return view('verificacion.index', compact('examenes'));
+        return view('verificacion.index', compact('examenes', 'ambientes'));
     }
 
     /** Atajos de las rutas del plan del sprint: POST /verificar/codigo, /verificar/ci y /verificar/qr. */
@@ -75,6 +76,7 @@ class VerificacionController extends Controller
         $reglas = [
             'id_examen' => ['required', 'integer', 'exists:examenes,id'],
             'metodo_verificacion' => ['required', Rule::in(['CODIGO_UNIV', 'CI', 'QR'])],
+            'ambiente_control_id' => ['nullable', 'integer', 'exists:ambientes,id'],
         ];
 
         if ($metodo === 'CODIGO_UNIV') {
@@ -101,6 +103,13 @@ class VerificacionController extends Controller
         if (! $examen->permiteA($request->user())) {
             return response()->json(['message' => 'Ese examen no es de una de tus materias.'], 403);
         }
+        $ambienteAsignado = $this->ambienteAsignadoDe($examen);
+        $ambienteControl = $request->filled('ambiente_control_id')
+            ? Ambiente::findOrFail((int) $data['ambiente_control_id'])
+            : $ambienteAsignado;
+        $ambienteCoincide = $ambienteAsignado && $ambienteControl
+            ? $ambienteAsignado->is($ambienteControl)
+            : false;
         $tipoBitacora = self::TIPO_BITACORA[$metodo];
 
         // ---- 1) Identificar al estudiante según el método ----
@@ -130,7 +139,7 @@ class VerificacionController extends Controller
         }
 
         // Cierra la verificación: la deja en la bitácora (y como intento si fue negativa) y arma la respuesta JSON.
-        $ambienteId = $this->ambienteIdDe($examen);
+        $ambienteId = $ambienteControl?->id ?? $this->ambienteIdDe($examen);
 
         $cerrar = function (string $resultado, string $tipoRespuesta, string $mensaje, int $http, ?Estudiante $est, array $extra = [], bool $esIntento = true) use ($request, $examen, $tipoBitacora, $dato, $ambienteId): JsonResponse {
             $comunes = [
@@ -178,7 +187,7 @@ class VerificacionController extends Controller
 
         if ($ingresoPrevio) {
             // RQ11: el intento repetido queda en intento_ingreso con el motivo INGRESO_DUPLICADO.
-            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodo, 'INGRESO_DUPLICADO');
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodo, 'INGRESO_DUPLICADO', $ambienteControl);
 
             // Segundo intento con el mismo código / CI / QR: queda como INCIDENCIA con la hora exacta del intento
             // y la hora en que ingresó la primera vez, para que el docente la vea en el reporte.
@@ -219,7 +228,7 @@ class VerificacionController extends Controller
             // RQ12: no está habilitado Y tampoco está inscrito en la materia del examen => el examen no le corresponde.
             // Queda en intento_ingreso (motivo EXAMEN_NO_CORRESPONDE) y la pantalla muestra una alerta inmediata.
             if ($this->noCorresponde->noLeCorresponde($examen, $estudiante)) {
-                $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodo, ExamenNoCorrespondeService::MOTIVO);
+                $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodo, ExamenNoCorrespondeService::MOTIVO, $ambienteControl);
 
                 return $cerrar(ExamenNoCorrespondeService::MOTIVO, 'no_corresponde', ExamenNoCorrespondeService::MENSAJE, 422, $estudiante, [
                     'motivo' => ExamenNoCorrespondeService::MENSAJE,
@@ -246,13 +255,19 @@ class VerificacionController extends Controller
             $mensaje = $esObservada
                 ? 'La foto del estudiante fue observada y no se corrigió. No puede ingresar hasta tener una foto válida.'
                 : 'El estudiante no tiene foto registrada. No puede ingresar hasta subir una foto válida.';
-            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodo, 'SIN_FOTO_VALIDA');
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodo, 'SIN_FOTO_VALIDA', $ambienteControl);
 
             return $cerrar('SIN_FOTO', 'sin_foto', $mensaje, 422, $estudiante, ['motivo' => $mensaje, 'ambiente' => $examen->ambiente, 'alerta' => true] + $resumen, esIntento: false);
         }
 
-        return $cerrar('HABILITADO', 'habilitado', 'Estudiante habilitado para este examen.', 200, $estudiante,
-            ['codigo' => $estudiante->codigo_universitario, 'id_habilitacion' => $habilitacion->id, 'ambiente' => $examen->ambiente] + $resumen, esIntento: false);
+        return $cerrar('HABILITADO', 'habilitado', 'Estudiante habilitado para este examen.', 200, $estudiante, [
+            'codigo' => $estudiante->codigo_universitario,
+            'id_habilitacion' => $habilitacion->id,
+            'ambiente' => $examen->ambiente,
+            'ambiente_coincide' => $ambienteCoincide,
+            'ambiente_control' => $this->datosDeAmbiente($ambienteControl),
+            'ambiente_asignado' => $this->datosDeAmbiente($ambienteAsignado, (string) $examen->ambiente),
+        ] + $resumen, esIntento: false);
     }
 
     public function ingreso(Request $request, IngresoService $servicio): JsonResponse
@@ -264,6 +279,7 @@ class VerificacionController extends Controller
             'examen_id' => ['required_without:id_examen', 'integer', 'exists:examenes,id'],
             'codigo_universitario' => ['nullable', 'digits:9'],
             'metodo' => ['nullable', Rule::in(['CODIGO_UNIV', 'CI', 'QR'])],
+            'ambiente_control_id' => ['nullable', 'integer', 'exists:ambientes,id'],
         ], [
             'id_estudiante.required_without' => 'Falta el identificador del estudiante.',
             'id_examen.required_without' => 'Falta el identificador del examen.',
@@ -279,6 +295,19 @@ class VerificacionController extends Controller
             return response()->json(['mensaje' => 'Ese examen no es de una de tus materias.'], 403);
         }
 
+        $ambienteAsignado = $this->ambienteAsignadoDe($examen);
+        $ambienteControl = $request->filled('ambiente_control_id')
+            ? Ambiente::findOrFail((int) $data['ambiente_control_id'])
+            : $ambienteAsignado;
+        if ($request->filled('ambiente_control_id')
+            && (! $ambienteAsignado || ! $ambienteControl || ! $ambienteAsignado->is($ambienteControl))) {
+            return response()->json([
+                'tipo' => 'ambiente_incorrecto',
+                'mensaje' => 'AMBIENTE INCORRECTO. El estudiante debe dirigirse al ambiente asignado.',
+                'ambiente_asignado' => $this->datosDeAmbiente($ambienteAsignado, (string) $examen->ambiente),
+            ], 422);
+        }
+
         if ($request->filled('codigo_universitario')
             && trim((string) $request->codigo_universitario) !== trim((string) $estudiante->codigo_universitario)) {
             return response()->json([
@@ -292,7 +321,7 @@ class VerificacionController extends Controller
         if (strtoupper((string) $estudiante->estado) !== 'ACTIVO') {
             $estadoActual = strtoupper((string) $estudiante->estado);
             $mensaje = "El estudiante no se encuentra activo para rendir el examen (estado: {$estadoActual}).";
-            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, $mensaje);
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, $mensaje, $ambienteControl);
 
             return response()->json([
                 'tipo' => 'inactivo',
@@ -308,7 +337,7 @@ class VerificacionController extends Controller
 
         // RQ12: el examen no le corresponde (sin habilitación y fuera de la materia): 422 + intento registrado.
         if (! $habilitacion && $this->noCorresponde->noLeCorresponde($examen, $estudiante)) {
-            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, ExamenNoCorrespondeService::MOTIVO);
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, ExamenNoCorrespondeService::MOTIVO, $ambienteControl);
 
             return response()->json([
                 'tipo' => 'no_corresponde',
@@ -322,7 +351,7 @@ class VerificacionController extends Controller
             $mensaje = $habilitacion
                 ? 'El estudiante está inhabilitado para este examen'.($detalle ? ': '.$detalle.'.' : '.')
                 : 'El estudiante no tiene habilitación registrada para este examen.';
-            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, $mensaje);
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, $mensaje, $ambienteControl);
 
             return response()->json([
                 'tipo' => 'no_habilitado',
@@ -332,7 +361,7 @@ class VerificacionController extends Controller
         }
 
         if ($previo = $this->ingresoPrevio($estudianteId, $examenId)) {
-            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, 'INGRESO_DUPLICADO');
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, 'INGRESO_DUPLICADO', $ambienteControl);
 
             return $this->respuestaYaRegistrado($previo, $estudiante, $examen);
         }
@@ -340,7 +369,7 @@ class VerificacionController extends Controller
         // La foto es obligatoria también al registrar el ingreso (el servidor no confía en lo que muestre la pantalla).
         if (! $estudiante->foto_valida) {
             $mensaje = 'El estudiante no tiene una foto válida registrada, por eso no se puede autorizar su ingreso.';
-            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, 'SIN_FOTO_VALIDA');
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, 'SIN_FOTO_VALIDA', $ambienteControl);
 
             return response()->json(['tipo' => 'sin_foto', 'mensaje' => $mensaje, 'motivo' => $mensaje], 422);
         }
@@ -353,11 +382,12 @@ class VerificacionController extends Controller
                 $examen,
                 $request->user(),
                 $metodoIngreso,
-                $request
+                $request,
+                $ambienteControl
             );
         } catch (UniqueConstraintViolationException $e) {
             // Índice único (estudiante, examen): otro clic (o un reintento tras perder la respuesta) llegó primero.
-            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, 'INGRESO_DUPLICADO');
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, 'INGRESO_DUPLICADO', $ambienteControl);
             $previo = $this->ingresoPrevio($estudianteId, $examenId);
 
             return $previo
@@ -431,14 +461,32 @@ class VerificacionController extends Controller
         return Ambiente::where('nombre', (string) $examen->ambiente)->value('id');
     }
 
+    private function ambienteAsignadoDe(Examen $examen): ?Ambiente
+    {
+        return Ambiente::where('nombre', (string) $examen->ambiente)->first();
+    }
+
+    private function datosDeAmbiente(?Ambiente $ambiente, ?string $nombreFallback = null): ?array
+    {
+        if (! $ambiente && ! $nombreFallback) {
+            return null;
+        }
+
+        return [
+            'id' => $ambiente?->id,
+            'nombre' => $ambiente?->nombre ?: $nombreFallback,
+            'ubicacion' => $ambiente?->ubicacion,
+        ];
+    }
+
     /** Guarda en intento_ingreso un ingreso rechazado (estudiante no habilitado o no activo). Nunca rompe la respuesta. */
-    private function registrarIntentoRechazado(Request $request, Examen $examen, Estudiante $estudiante, string $metodo, string $motivo): void
+    private function registrarIntentoRechazado(Request $request, Examen $examen, Estudiante $estudiante, string $metodo, string $motivo, ?Ambiente $ambiente = null): void
     {
         try {
             IntentoIngreso::create([
                 'estudiante_id' => $estudiante->getKey(),
                 'examen_id' => $examen->id,
-                'ambiente_id' => $this->ambienteIdDe($examen),
+                'ambiente_id' => $ambiente?->id ?? $this->ambienteIdDe($examen),
                 'controlador_id' => $request->user()->id,
                 'tipo' => self::TIPO_BITACORA[$metodo] ?? 'CODIGO_UNIVERSITARIO',
                 'dato_verificado' => (string) $estudiante->codigo_universitario,

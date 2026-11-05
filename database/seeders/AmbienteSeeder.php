@@ -10,17 +10,20 @@ class AmbienteSeeder extends Seeder
     public function run(): void
     {
         foreach ([
-            ['Edificio Central 102A', 120],
-            ['Auditorio Central', 200],
-            ['Lab. Cómputo 1 y 2', 60],
-            ['Pabellón B - Aula 304', 80],
-            ['Edificio Sur 201', 90],
-            ['Lab. Cómputo 3', 40],
-        ] as [$nombre, $capacidad]) {
-            Ambiente::firstOrCreate(
+            ['Edificio Central 102A', 'Planta baja, Bloque Central', 120],
+            ['Auditorio Central', null, 200],
+            ['Lab. Cómputo 1 y 2', null, 60],
+            ['Pabellón B - Aula 304', null, 80],
+            ['Edificio Sur 201', null, 90],
+            ['Lab. Cómputo 3', null, 40],
+        ] as [$nombre, $ubicacion, $capacidad]) {
+            $ambiente = Ambiente::firstOrCreate(
                 ['nombre' => $nombre],
-                ['capacidad' => $capacidad]
+                ['ubicacion' => $ubicacion, 'capacidad' => $capacidad]
             );
+            if ($ubicacion && ! $ambiente->ubicacion) {
+                $ambiente->update(['ubicacion' => $ubicacion]);
+            }
         }
     }
 }
