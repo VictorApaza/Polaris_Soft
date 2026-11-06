@@ -72,6 +72,8 @@
             @if ($es('administrador', 'control', 'docente'))
                 <a href="{{ route('verificacion.index') }}" @class(['active' => request()->routeIs('verificacion.*')])>
                     <svg class="i"><use href="#i-check"/></svg> {{ $es('docente') ? 'Verificar' : 'Verificación' }}</a>
+                <a href="{{ route('en-vivo.index') }}" @class(['active' => request()->routeIs('en-vivo.*')])>
+                    <svg class="i"><use href="#i-eye"/></svg> Control en vivo</a>
                 <a href="{{ route('transparencia.index') }}" @class(['active' => request()->routeIs('transparencia.*')])>
                     <svg class="i"><use href="#i-shield"/></svg> Transparencia</a>
             @endif

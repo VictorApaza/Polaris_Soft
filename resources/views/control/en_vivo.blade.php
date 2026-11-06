@@ -1,0 +1,219 @@
+@extends('layouts.app')
+@section('title', 'Control en vivo')
+
+@section('content')
+    <style>
+        .ev-top { display:flex; gap:14px; flex-wrap:wrap; align-items:end; background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px 16px; margin-top:12px; }
+        .ev-top .field { flex:1 1 320px; margin:0; }
+        .ev-actualiza { margin-left:auto; color:var(--muted); font-size:13px; }
+        .ev-contadores { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:12px; }
+        .ev-cont { background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px 16px; }
+        .ev-cont b { display:block; font-size:28px; line-height:1.1; color:var(--navy-900); }
+        .ev-cont span { color:var(--muted); font-size:13px; }
+        .ev-cont.ok b { color:#15803d; } .ev-cont.pend b { color:#b45309; } .ev-cont.exp b { color:#b91c1c; }
+        .ev-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+        .ev-tab { border:2px solid var(--line); background:#fff; border-radius:12px; padding:9px 16px; font-weight:600; cursor:pointer; }
+        .ev-tab.activa { border-color:var(--blue-600, #2f5fd0); background:var(--blue-50); color:var(--blue-700); }
+        .ev-tab[disabled] { opacity:.55; cursor:not-allowed; }
+        .ev-tab small { font-weight:500; margin-left:4px; }
+        .ev-filtros { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+        .ev-filtros input, .ev-filtros select { padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; min-width:220px; }
+        .ev-aviso { display:none; align-items:center; gap:12px; margin-top:12px; padding:10px 14px; border-radius:10px; background:#fef3c7; color:#92400e; font-weight:600; }
+        .ev-aviso.visible { display:flex; }
+        .ev-aviso .btn-mini { height:34px; padding:0 16px; font-weight:700; border-radius:10px; border:1px solid #f59e0b; background:#fff; color:#92400e; cursor:pointer; }
+        .ev-tabla tr.nuevo td { animation: evNuevo 4s ease-out; }
+        @keyframes evNuevo { from { background:#bbf7d0; } to { background:transparent; } }
+        .ev-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; background:#fee2e2; color:#b91c1c; }
+        .ev-vacio { padding:28px; text-align:center; color:var(--muted); }
+    </style>
+
+    <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Control en vivo</b></nav>
+
+    <div class="head">
+        <div>
+            <h1>Control en vivo</h1>
+            <p>Quiénes ya ingresaron y quiénes todavía no se presentan. Se actualiza solo cada 5 segundos.</p>
+        </div>
+    </div>
+
+    <div class="ev-top">
+        <div class="field">
+            <label for="ev-examen">Examen</label>
+            <select id="ev-examen">
+                @if ($examenes->isEmpty()) <option value="">No hay exámenes disponibles</option> @endif
+                @foreach ($examenes as $x)
+                    <option value="{{ $x->id }}" @selected($examen && $examen->id === $x->id)>{{ $x->nombre }} · {{ $x->carrera }} · {{ $x->fecha->format('d/m') }} {{ $x->hora }} · {{ $x->ambiente }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="ev-actualiza" id="ev-actualiza" aria-live="polite">—</div>
+    </div>
+
+    <div class="ev-aviso" id="ev-aviso" role="alert">
+        <span>No se pudo actualizar (sin conexión con el servidor). Se muestran los últimos datos y se reintenta solo.</span>
+        <button type="button" class="btn-mini" id="ev-reintentar">Reintentar</button>
+    </div>
+
+    @if (! $examen)
+        <div class="banner" style="margin-top:16px"><span class="ic"><svg class="i"><use href="#i-info"/></svg></span>
+            <div><b>No hay exámenes para controlar</b><small>Cuando haya un examen programado o abierto aparecerá aquí.</small></div></div>
+    @else
+        <div class="ev-contadores">
+            <div class="ev-cont"><b id="c-habilitados">0</b><span>Habilitados</span></div>
+            <div class="ev-cont ok"><b id="c-ingresaron">0</b><span>Ingresaron</span></div>
+            <div class="ev-cont pend"><b id="c-pendientes">0</b><span>Pendientes</span></div>
+            <div class="ev-cont exp"><b id="c-expulsados">0</b><span>Expulsados</span></div>
+        </div>
+
+        <div class="ev-tabs" role="tablist">
+            <button type="button" class="ev-tab activa" data-tab="ingresaron" role="tab">Ingresaron</button>
+            <button type="button" class="ev-tab" data-tab="pendientes" role="tab">Pendientes</button>
+            <button type="button" class="ev-tab" data-tab="expulsados" role="tab" disabled title="Se completa con el RQ20">Expulsados <small>(RQ20)</small></button>
+            <button type="button" class="ev-tab" data-tab="situaciones" role="tab" disabled title="Se completa con el RQ21">Situaciones <small>(RQ21)</small></button>
+        </div>
+
+        <div class="ev-filtros">
+            <input type="search" id="ev-buscar" placeholder="Buscar por nombre, código o CI…" autocomplete="off">
+            <select id="ev-filtro" aria-label="Filtro"><option value="">Todos los ambientes</option></select>
+        </div>
+
+        <section class="card" style="margin-top:12px">
+            <div class="scroll">
+                <table class="ev-tabla" id="ev-tabla">
+                    <thead id="ev-thead"></thead>
+                    <tbody id="ev-tbody"></tbody>
+                </table>
+            </div>
+            <div class="foot"><span id="ev-pie"></span></div>
+        </section>
+    @endif
+@endsection
+
+@push('scripts')
+@if ($examen)
+<script>
+(function () {
+    const EXAMEN = {{ $examen->id }};
+    const URL_INGRESADOS = @json(route('ingreso.ingresados', $examen));
+    const URL_PENDIENTES = @json(route('ingreso.pendientes', $examen));
+    const URL_EXAMEN = @json(route('en-vivo.examen', '__ID__'));
+    const CADA_MS = 5000;
+
+    const $ = (id) => document.getElementById(id);
+    let pestana = 'ingresaron';
+    const ingresos = new Map();     // id -> fila (solo se agregan los nuevos, no se recarga todo)
+    let desde = null;               // hora del último ingreso conocido
+    let pendientes = [];
+    let nuevos = new Set();
+    let timer = null;
+
+    $('ev-examen').addEventListener('change', (e) => { if (e.target.value) location.href = URL_EXAMEN.replace('__ID__', e.target.value); });
+
+    function pedir(url) {
+        return fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+    }
+
+    function contadores(r) {
+        $('c-habilitados').textContent = r.habilitados;
+        $('c-ingresaron').textContent = r.ingresaron;
+        $('c-pendientes').textContent = r.pendientes;
+        $('c-expulsados').textContent = r.expulsados;
+    }
+
+    async function actualizar() {
+        if (document.hidden) return;
+        try {
+            const url = URL_INGRESADOS + (desde ? '?desde=' + encodeURIComponent(desde) : '');
+            const di = await pedir(url);
+            nuevos = new Set();
+            di.nuevos.forEach((f) => { if (!ingresos.has(f.id)) { ingresos.set(f.id, f); if (desde) nuevos.add(f.id); } else { ingresos.set(f.id, f); } });
+            if (di.ultimo) desde = di.ultimo;
+            contadores(di.resumen);
+
+            if (pestana === 'pendientes') {
+                const dp = await pedir(URL_PENDIENTES);
+                pendientes = dp.pendientes;
+                contadores(dp.resumen);
+            }
+            $('ev-aviso').classList.remove('visible');
+            $('ev-actualiza').textContent = 'Actualizado: ' + di.hora_servidor;
+            pintar();
+        } catch (e) {
+            $('ev-aviso').classList.add('visible');
+        }
+    }
+
+    function texto(t) { return (t || '').toString().toLowerCase(); }
+
+    function opcionesFiltro(valores, titulo) {
+        const sel = $('ev-filtro');
+        const actual = sel.value;
+        const lista = [...new Set(valores.filter(Boolean))].sort();
+        sel.innerHTML = '';
+        const todos = document.createElement('option'); todos.value = ''; todos.textContent = titulo; sel.appendChild(todos);
+        lista.forEach((v) => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+        if (lista.includes(actual)) sel.value = actual;
+    }
+
+    function celda(tr, valor, clase) { const td = document.createElement('td'); td.textContent = valor; if (clase) td.className = clase; tr.appendChild(td); return td; }
+
+    function pintar() {
+        const q = texto($('ev-buscar').value).trim();
+        const filtro = $('ev-filtro').value;
+        const thead = $('ev-thead'); const tbody = $('ev-tbody');
+        tbody.innerHTML = '';
+        let lista;
+
+        if (pestana === 'ingresaron') {
+            const todas = [...ingresos.values()].sort((a, b) => (b.fecha_hora_ingreso.localeCompare(a.fecha_hora_ingreso)) || (b.id - a.id));
+            opcionesFiltro(todas.map((f) => f.ambiente), 'Todos los ambientes');
+            lista = todas.filter((f) => (!filtro || f.ambiente === $('ev-filtro').value)
+                && (!q || texto(f.nombre).includes(q) || texto(f.codigo).includes(q) || texto(f.ci).includes(q)));
+            thead.innerHTML = '<tr><th>Hora de ingreso</th><th>Código</th><th>CI</th><th>Nombre</th><th>Ambiente</th><th>Estado</th></tr>';
+            lista.forEach((f) => {
+                const tr = document.createElement('tr'); if (nuevos.has(f.id)) tr.className = 'nuevo';
+                celda(tr, f.fecha_hora_local, 'num'); celda(tr, f.codigo, 'num'); celda(tr, f.ci, 'num'); celda(tr, f.nombre, 'strong'); celda(tr, f.ambiente);
+                const td = document.createElement('td');
+                if (f.expulsado) { const b = document.createElement('span'); b.className = 'ev-badge'; b.textContent = 'EXPULSADO'; td.appendChild(b); } else { td.textContent = 'Dentro'; }
+                tr.appendChild(td); tbody.appendChild(tr);
+            });
+            $('ev-pie').textContent = lista.length + ' de ' + ingresos.size + ' ingresos';
+        } else {
+            opcionesFiltro(pendientes.map((f) => f.grupo), 'Todos los grupos');
+            lista = pendientes.filter((f) => (!filtro || f.grupo === $('ev-filtro').value)
+                && (!q || texto(f.nombre).includes(q) || texto(f.codigo).includes(q) || texto(f.ci).includes(q)));
+            thead.innerHTML = '<tr><th>Código</th><th>CI</th><th>Nombre</th><th>Grupo</th></tr>';
+            lista.forEach((f) => {
+                const tr = document.createElement('tr');
+                celda(tr, f.codigo, 'num'); celda(tr, f.ci, 'num'); celda(tr, f.nombre, 'strong'); celda(tr, f.grupo || '—');
+                tbody.appendChild(tr);
+            });
+            $('ev-pie').textContent = lista.length + ' de ' + pendientes.length + ' pendientes';
+        }
+
+        if (!lista.length) {
+            const tr = document.createElement('tr'); const td = document.createElement('td');
+            td.colSpan = 6; td.className = 'ev-vacio';
+            td.textContent = pestana === 'ingresaron' ? 'Todavía no hay ingresos que coincidan.' : 'No hay pendientes que coincidan: todos los habilitados ya se presentaron.';
+            tr.appendChild(td); tbody.appendChild(tr);
+        }
+    }
+
+    document.querySelectorAll('.ev-tab:not([disabled])').forEach((b) => b.addEventListener('click', async () => {
+        pestana = b.dataset.tab;
+        document.querySelectorAll('.ev-tab').forEach((x) => x.classList.toggle('activa', x === b));
+        $('ev-buscar').value = ''; $('ev-filtro').value = '';
+        if (pestana === 'pendientes') { await actualizar(); } else { pintar(); }
+    }));
+    $('ev-buscar').addEventListener('input', pintar);
+    $('ev-filtro').addEventListener('change', pintar);
+    $('ev-reintentar').addEventListener('click', actualizar);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) actualizar(); });
+
+    actualizar();
+    timer = setInterval(actualizar, CADA_MS);
+})();
+</script>
+@endif
+@endpush

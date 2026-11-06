@@ -6,6 +6,7 @@ use App\Http\Controllers\AmbienteController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BuscadorEstudiantesController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ControlEnVivoController;
 use App\Http\Controllers\DocenteController;
 use App\Http\Controllers\DocenteExamenController;
 use App\Http\Controllers\DocenteMateriaController;
@@ -16,7 +17,9 @@ use App\Http\Controllers\ExamenController;
 use App\Http\Controllers\FotoEstudianteController;
 use App\Http\Controllers\GrupoController;
 use App\Http\Controllers\HabilitacionController;
+use App\Http\Controllers\FotoCargaController;
 use App\Http\Controllers\IncidenciaController;
+use App\Http\Controllers\IntentoIngresoController;
 use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ReporteController;
@@ -127,6 +130,25 @@ Route::middleware(['auth', 'role:administrador,control,docente'])->group(functio
     Route::get('/control-ingreso', [VerificacionController::class, 'index'])->name('ingreso.index');
     Route::post('/control-ingreso/verificar', [VerificacionController::class, 'verificar'])->name('ingreso.verificar');
     Route::post('/control-ingreso/ingreso', [VerificacionController::class, 'ingreso'])->name('ingreso.ingreso');
+});
+
+// --- Control en vivo (RQ14 ingresaron, RQ15 pendientes) e intentos rechazados (RQ12) ---
+Route::middleware(['auth', 'role:administrador,control,docente'])->group(function () {
+    Route::get('/control-ingreso/en-vivo', [ControlEnVivoController::class, 'vista'])->name('en-vivo.index');
+    Route::get('/control-ingreso/examen/{examen}/en-vivo', [ControlEnVivoController::class, 'vista'])->name('en-vivo.examen');
+    Route::get('/control-ingreso/examen/{examen}/ingresados', [ControlEnVivoController::class, 'ingresados'])->name('ingreso.ingresados');
+    Route::get('/control-ingreso/examen/{examen}/pendientes', [ControlEnVivoController::class, 'pendientes'])->name('ingreso.pendientes');
+    Route::get('/intentos-ingreso/examen/{examen}', [IntentoIngresoController::class, 'porExamen'])->name('intentos.examen');
+});
+
+// --- Fotos (RQ29): cargar (individual o ZIP) y consultar por código, CI o QR ---
+Route::middleware(['auth', 'role:administrador,docente'])->group(function () {
+    Route::get('/fotos/cargar', [FotoCargaController::class, 'index'])->name('fotos.cargar');
+    Route::post('/fotos/individual', [FotoCargaController::class, 'individual'])->name('fotos.individual');
+    Route::post('/fotos/zip', [FotoCargaController::class, 'zip'])->name('fotos.zip');
+});
+Route::middleware(['auth', 'role:administrador,control,docente'])->group(function () {
+    Route::get('/fotos/consultar', [FotoCargaController::class, 'consultar'])->name('fotos.consultar');
 });
 
 // --- Transparencia de ingreso (RQ8) ---

@@ -11,6 +11,7 @@
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
             <a class="btn ghost" href="{{ route('estudiantes.plantilla') }}">⬇ Plantilla CSV de estudiantes</a>
+            <a class="btn ghost" href="{{ route('fotos.cargar') }}">Cargar fotos</a>
             <a class="btn" href="{{ route('estudiantes.importar.form') }}"><svg class="i"><use href="#i-plus"/></svg> Importar estudiantes</a>
         </div>
     </div>
