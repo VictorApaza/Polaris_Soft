@@ -492,6 +492,8 @@
                                     sub: 'Ingresó el ' + (d.fecha_hora_local || '—') + (d.ambiente ? ' · Aula ' + d.ambiente : ''), sonido: sonidoAlerta },
             no_corresponde:       { clase: 'alerta', icono: '⚠', titulo: 'EXAMEN NO CORRESPONDE',
                                     sub: 'Este examen no le corresponde al estudiante · intento n.º ' + (d.numero_intento || 1), sonido: sonidoNoCorresponde },
+            expulsado:            { clase: 'alerta', icono: '⛔', titulo: 'ESTUDIANTE EXPULSADO',
+                                    sub: 'Expulsado el ' + (d.fecha_hora_local || '—') + ' · no puede volver a ingresar', sonido: sonidoAlerta },
         }[d.tipo] || { clase: 'warn', icono: '!', titulo: 'RESULTADO', sub: d.mensaje, sonido: sonidoError };
 
         info.sonido();
@@ -546,6 +548,13 @@
             a.appendChild(document.createTextNode('Este nuevo intento fue a las ' + hora(d.hora_intento)
                 + ' y quedó registrado' + (d.incidencia_id ? ' como incidencia #' + d.incidencia_id : '')
                 + '. No se puede autorizar el ingreso otra vez: pide su carnet y avisa al docente.'));
+            card.appendChild(a);
+        }
+        if (d.tipo === 'expulsado') {
+            // RQ20: motivo de la expulsión y hora del nuevo intento (textContent, nada de HTML).
+            const a = el('div', 'v-aviso err');
+            a.appendChild(el('b', null, 'Motivo de la expulsión: '));
+            a.appendChild(document.createTextNode((d.motivo || '—').replace(/[.\s]+$/, '') + '. Este intento a las ' + hora(d.hora_intento) + ' quedó registrado.'));
             card.appendChild(a);
         }
         if (d.tipo === 'no_corresponde') {

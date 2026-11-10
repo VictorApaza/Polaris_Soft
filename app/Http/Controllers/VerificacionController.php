@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ambiente;
 use App\Models\Estudiante;
 use App\Models\Examen;
+use App\Models\Expulsion;
 use App\Models\Habilitacion;
 use App\Models\Incidencia;
 use App\Models\Ingreso;
@@ -180,6 +181,20 @@ class VerificacionController extends Controller
 
             return $cerrar('INACTIVO', 'inactivo', "El estudiante no se encuentra activo para rendir el examen (estado: {$estadoActual}).", 422, $estudiante,
                 ['motivo' => "Estado del estudiante: {$estadoActual}"] + $resumen);
+        }
+
+        // ---- RQ20: ¿fue expulsado de este examen? No puede volver a entrar (se evalúa antes de "ya ingresó") ----
+        if ($expulsion = Expulsion::de((int) $estudiante->id_estudiante, (int) $examen->id)) {
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodo, 'ESTUDIANTE_EXPULSADO', $ambienteControl);
+
+            return $cerrar('EXPULSADO', 'expulsado', 'El estudiante fue expulsado de este examen y no puede volver a ingresar.', 409, $estudiante, [
+                'motivo' => $expulsion->motivo,
+                'fecha_hora' => $expulsion->fecha_hora->toIso8601String(),
+                'fecha_hora_local' => $expulsion->fecha_hora_local,
+                'ambiente' => $examen->ambiente,
+                'hora_intento' => now()->toIso8601String(),
+                'alerta' => true,
+            ] + $resumen, esIntento: false);
         }
 
         // ---- 3) ¿Ya ingresó a este examen? (RQ11) ----
@@ -358,6 +373,18 @@ class VerificacionController extends Controller
                 'mensaje' => $mensaje,
                 'motivo' => $detalle ?? ($habilitacion ? 'Inhabilitado para este examen.' : 'No tiene habilitación registrada para este examen.'),
             ], 422);
+        }
+
+        // RQ20: un estudiante expulsado de este examen no puede volver a registrar su ingreso.
+        if ($expulsion = Expulsion::de($estudianteId, $examenId)) {
+            $this->registrarIntentoRechazado($request, $examen, $estudiante, $metodoIngreso, 'ESTUDIANTE_EXPULSADO', $ambienteControl);
+
+            return response()->json([
+                'tipo' => 'expulsado',
+                'mensaje' => 'El estudiante fue expulsado de este examen y no puede volver a ingresar.',
+                'motivo' => $expulsion->motivo,
+                'fecha_hora_local' => $expulsion->fecha_hora_local,
+            ], 409);
         }
 
         if ($previo = $this->ingresoPrevio($estudianteId, $examenId)) {

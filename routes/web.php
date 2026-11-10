@@ -14,6 +14,7 @@ use App\Http\Controllers\EstudianteController;
 use App\Http\Controllers\EstudiantePortalController;
 use App\Http\Controllers\EstudianteQrController;
 use App\Http\Controllers\ExamenController;
+use App\Http\Controllers\ExpulsionController;
 use App\Http\Controllers\FotoEstudianteController;
 use App\Http\Controllers\GrupoController;
 use App\Http\Controllers\HabilitacionController;
@@ -139,6 +140,9 @@ Route::middleware(['auth', 'role:administrador,control,docente'])->group(functio
     Route::get('/control-ingreso/examen/{examen}/ingresados', [ControlEnVivoController::class, 'ingresados'])->name('ingreso.ingresados');
     Route::get('/control-ingreso/examen/{examen}/pendientes', [ControlEnVivoController::class, 'pendientes'])->name('ingreso.pendientes');
     Route::get('/intentos-ingreso/examen/{examen}', [IntentoIngresoController::class, 'porExamen'])->name('intentos.examen');
+    // RQ20: expulsar a un estudiante que ya ingresó y listar los expulsados del examen.
+    Route::post('/control-ingreso/expulsiones', [ExpulsionController::class, 'store'])->name('ingreso.expulsar');
+    Route::get('/control-ingreso/examen/{examen}/expulsados', [ExpulsionController::class, 'porExamen'])->name('ingreso.expulsados');
 });
 
 // --- Fotos (RQ29): cargar (individual o ZIP) y consultar por código, CI o QR ---

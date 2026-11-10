@@ -68,7 +68,7 @@
         <div class="ev-tabs" role="tablist">
             <button type="button" class="ev-tab activa" data-tab="ingresaron" role="tab">Ingresaron</button>
             <button type="button" class="ev-tab" data-tab="pendientes" role="tab">Pendientes</button>
-            <button type="button" class="ev-tab" data-tab="expulsados" role="tab" disabled title="Se completa con el RQ20">Expulsados <small>(RQ20)</small></button>
+            <button type="button" class="ev-tab" data-tab="expulsados" role="tab">Expulsados</button>
             <button type="button" class="ev-tab" data-tab="situaciones" role="tab" disabled title="Se completa con el RQ21">Situaciones <small>(RQ21)</small></button>
         </div>
 
@@ -86,6 +86,8 @@
             </div>
             <div class="foot"><span id="ev-pie"></span></div>
         </section>
+
+        @include('control._modal_expulsion')
     @endif
 @endsection
 
@@ -98,6 +100,9 @@
     const URL_PENDIENTES = @json(route('ingreso.pendientes', $examen));
     const URL_EXAMEN = @json(route('en-vivo.examen', '__ID__'));
     const CADA_MS = 5000;
+    const URL_EXPULSADOS = @json(route('ingreso.expulsados', $examen));   // RQ20
+    const URL_EXPULSAR = @json(route('ingreso.expulsar'));                // RQ20
+    const CSRF = document.querySelector('meta[name="csrf-token"]').content;
 
     const $ = (id) => document.getElementById(id);
     let pestana = 'ingresaron';
@@ -106,6 +111,7 @@
     let pendientes = [];
     let nuevos = new Set();
     let timer = null;
+    let expulsados = [];            // RQ20: expulsados del examen (se pide de nuevo solo cuando cambia su cantidad)
 
     $('ev-examen').addEventListener('change', (e) => { if (e.target.value) location.href = URL_EXAMEN.replace('__ID__', e.target.value); });
 
@@ -130,6 +136,7 @@
             di.nuevos.forEach((f) => { if (!ingresos.has(f.id)) { ingresos.set(f.id, f); if (desde) nuevos.add(f.id); } else { ingresos.set(f.id, f); } });
             if (di.ultimo) desde = di.ultimo;
             contadores(di.resumen);
+            if (di.resumen.expulsados !== expulsados.length) { expulsados = (await pedir(URL_EXPULSADOS)).expulsados; }   // RQ20
 
             if (pestana === 'pendientes') {
                 const dp = await pedir(URL_PENDIENTES);
@@ -170,15 +177,36 @@
             opcionesFiltro(todas.map((f) => f.ambiente), 'Todos los ambientes');
             lista = todas.filter((f) => (!filtro || f.ambiente === $('ev-filtro').value)
                 && (!q || texto(f.nombre).includes(q) || texto(f.codigo).includes(q) || texto(f.ci).includes(q)));
-            thead.innerHTML = '<tr><th>Hora de ingreso</th><th>Código</th><th>CI</th><th>Nombre</th><th>Ambiente</th><th>Estado</th></tr>';
+            thead.innerHTML = '<tr><th>Hora de ingreso</th><th>Código</th><th>CI</th><th>Nombre</th><th>Ambiente</th><th>Estado</th><th></th></tr>';
+            const exp = new Map(expulsados.map((x) => [x.estudiante_id, x]));   // RQ20
             lista.forEach((f) => {
                 const tr = document.createElement('tr'); if (nuevos.has(f.id)) tr.className = 'nuevo';
                 celda(tr, f.fecha_hora_local, 'num'); celda(tr, f.codigo, 'num'); celda(tr, f.ci, 'num'); celda(tr, f.nombre, 'strong'); celda(tr, f.ambiente);
                 const td = document.createElement('td');
-                if (f.expulsado) { const b = document.createElement('span'); b.className = 'ev-badge'; b.textContent = 'EXPULSADO'; td.appendChild(b); } else { td.textContent = 'Dentro'; }
-                tr.appendChild(td); tbody.appendChild(tr);
+                const x = exp.get(f.estudiante_id);   // RQ20
+                const expulsado = f.expulsado || !!x;
+                if (expulsado) {
+                    const b = document.createElement('span'); b.className = 'ev-badge'; b.textContent = 'EXPULSADO'; td.appendChild(b);
+                    if (x) { const sub = document.createElement('span'); sub.className = 'ev-sub'; sub.textContent = x.fecha_hora_local.slice(11) + ' · ' + x.motivo; td.appendChild(sub); }
+                } else { td.textContent = 'Dentro'; }
+                tr.appendChild(td);
+                const ta = document.createElement('td');   // RQ20: solo quien sigue dentro puede ser expulsado
+                if (!expulsado) { const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'ev-btn-exp'; bt.textContent = 'Expulsar'; bt.dataset.id = f.id; ta.appendChild(bt); }
+                tr.appendChild(ta); tbody.appendChild(tr);
             });
             $('ev-pie').textContent = lista.length + ' de ' + ingresos.size + ' ingresos';
+        } else if (pestana === 'expulsados') {
+            // RQ20: estudiante, motivo, hora y usuario que registró la expulsión
+            opcionesFiltro(expulsados.map((f) => f.ambiente), 'Todos los ambientes');
+            lista = expulsados.filter((f) => (!filtro || f.ambiente === $('ev-filtro').value)
+                && (!q || texto(f.nombre).includes(q) || texto(f.codigo).includes(q) || texto(f.ci).includes(q)));
+            thead.innerHTML = '<tr><th>Hora</th><th>Código</th><th>CI</th><th>Nombre</th><th>Ambiente</th><th>Motivo</th><th>Registró</th></tr>';
+            lista.forEach((f) => {
+                const tr = document.createElement('tr');
+                celda(tr, f.fecha_hora_local, 'num'); celda(tr, f.codigo, 'num'); celda(tr, f.ci, 'num'); celda(tr, f.nombre, 'strong'); celda(tr, f.ambiente); celda(tr, f.motivo); celda(tr, f.registrado_por);
+                tbody.appendChild(tr);
+            });
+            $('ev-pie').textContent = lista.length + ' de ' + expulsados.length + ' expulsados';
         } else {
             opcionesFiltro(pendientes.map((f) => f.grupo), 'Todos los grupos');
             lista = pendientes.filter((f) => (!filtro || f.grupo === $('ev-filtro').value)
@@ -194,8 +222,9 @@
 
         if (!lista.length) {
             const tr = document.createElement('tr'); const td = document.createElement('td');
-            td.colSpan = 6; td.className = 'ev-vacio';
-            td.textContent = pestana === 'ingresaron' ? 'Todavía no hay ingresos que coincidan.' : 'No hay pendientes que coincidan: todos los habilitados ya se presentaron.';
+            td.colSpan = 7; td.className = 'ev-vacio';
+            td.textContent = pestana === 'ingresaron' ? 'Todavía no hay ingresos que coincidan.'
+                : (pestana === 'expulsados' ? 'No hay estudiantes expulsados que coincidan.' : 'No hay pendientes que coincidan: todos los habilitados ya se presentaron.');
             tr.appendChild(td); tbody.appendChild(tr);
         }
     }
@@ -204,12 +233,69 @@
         pestana = b.dataset.tab;
         document.querySelectorAll('.ev-tab').forEach((x) => x.classList.toggle('activa', x === b));
         $('ev-buscar').value = ''; $('ev-filtro').value = '';
-        if (pestana === 'pendientes') { await actualizar(); } else { pintar(); }
+        if (pestana === 'pendientes' || pestana === 'expulsados') { await actualizar(); } else { pintar(); }
     }));
     $('ev-buscar').addEventListener('input', pintar);
     $('ev-filtro').addEventListener('change', pintar);
     $('ev-reintentar').addEventListener('click', actualizar);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) actualizar(); });
+
+    // ---------- RQ20: expulsar a un estudiante que ya ingresó ----------
+    const dlgExp = $('modal-expulsion');
+    const frmExp = $('form-expulsion');
+    let aExpulsar = null;
+    const motivoValido = () => $('exp-motivo').value.trim().length >= 5;
+
+    $('ev-tbody').addEventListener('click', (e) => {
+        const bt = e.target.closest('.ev-btn-exp');
+        if (!bt) return;
+        aExpulsar = ingresos.get(Number(bt.dataset.id)) || null;
+        if (!aExpulsar) return;
+        frmExp.reset();
+        $('exp-quien').textContent = aExpulsar.nombre + ' · ' + aExpulsar.codigo;
+        $('exp-cuenta').textContent = '0 / 500';
+        $('exp-error').style.display = 'none';
+        $('exp-confirmar').disabled = true;
+        dlgExp.showModal();
+        $('exp-motivo').focus();
+    });
+
+    $('exp-motivo').addEventListener('input', () => {
+        $('exp-cuenta').textContent = $('exp-motivo').value.length + ' / 500';
+        $('exp-confirmar').disabled = !motivoValido();   // el botón "Confirmar" queda desactivado hasta escribir el motivo
+    });
+
+    frmExp.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        if (!aExpulsar || !motivoValido()) return;
+        const confirmar = $('exp-confirmar');
+        confirmar.disabled = true;
+        $('exp-error').style.display = 'none';
+        try {
+            const res = await fetch(URL_EXPULSAR, {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                body: JSON.stringify({ examen_id: EXAMEN, estudiante_id: aExpulsar.estudiante_id, motivo: $('exp-motivo').value.trim() }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (res.ok) {
+                expulsados = [json.expulsion, ...expulsados.filter((x) => x.estudiante_id !== json.expulsion.estudiante_id)];
+                dlgExp.close();
+                aExpulsar = null;
+                pintar();
+                actualizar();
+                return;
+            }
+            $('exp-error').textContent = json.errors ? Object.values(json.errors)[0][0] : (json.mensaje || json.message || 'No se pudo registrar la expulsión.');
+            $('exp-error').style.display = 'block';
+            if (json.tipo === 'ya_expulsado') { actualizar(); }
+        } catch (err) {
+            $('exp-error').textContent = 'Error de conexión con el servidor. Inténtalo de nuevo.';
+            $('exp-error').style.display = 'block';
+        } finally {
+            confirmar.disabled = !motivoValido();
+        }
+    });
 
     actualizar();
     timer = setInterval(actualizar, CADA_MS);
