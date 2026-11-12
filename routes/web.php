@@ -24,6 +24,7 @@ use App\Http\Controllers\IntentoIngresoController;
 use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\SituacionExcepcionalController;
 use App\Http\Controllers\TransparenciaIngresoController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VerificacionController;
@@ -143,6 +144,10 @@ Route::middleware(['auth', 'role:administrador,control,docente'])->group(functio
     // RQ20: expulsar a un estudiante que ya ingresó y listar los expulsados del examen.
     Route::post('/control-ingreso/expulsiones', [ExpulsionController::class, 'store'])->name('ingreso.expulsar');
     Route::get('/control-ingreso/examen/{examen}/expulsados', [ExpulsionController::class, 'porExamen'])->name('ingreso.expulsados');
+    // RQ21: situaciones excepcionales (problemas de identificación, cambios de ambiente…): registrar, listar y marcar como revisadas.
+    Route::post('/control-ingreso/situaciones', [SituacionExcepcionalController::class, 'store'])->name('ingreso.situaciones.store');
+    Route::get('/control-ingreso/examen/{examen}/situaciones', [SituacionExcepcionalController::class, 'porExamen'])->name('ingreso.situaciones');
+    Route::patch('/control-ingreso/situaciones/{situacion}/revisar', [SituacionExcepcionalController::class, 'revisar'])->name('ingreso.situaciones.revisar');
 });
 
 // --- Fotos (RQ29): cargar (individual o ZIP) y consultar por código, CI o QR ---

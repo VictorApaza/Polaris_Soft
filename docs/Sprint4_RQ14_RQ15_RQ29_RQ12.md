@@ -16,7 +16,7 @@
 | Pestaña "Pendientes" con actualización cada 5 s; quien registra su ingreso desaparece de la lista | vista en vivo |
 | Resumen Habilitados / Ingresaron / Pendientes con buscador (nombre, código, CI) y filtro por grupo | vista en vivo |
 
-Las pestañas **Expulsados** (RQ20) y **Situaciones** (RQ21) están visibles pero desactivadas: las completan Laura y Eduardo.
+Las pestañas **Expulsados** (RQ20) y **Situaciones** (RQ21) ya están completas (ver `Sprint4_RQ20.md` y `Sprint4_RQ21.md`).
 Cuando exista la tabla `expulsion`, "Ingresaron" ya marca como EXPULSADO a quien figure en ella y el contador de expulsados se llena solo.
 
 ## RQ12 (pieza que faltaba)

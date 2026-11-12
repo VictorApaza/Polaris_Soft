@@ -25,6 +25,12 @@
         @keyframes evNuevo { from { background:#bbf7d0; } to { background:transparent; } }
         .ev-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; background:#fee2e2; color:#b91c1c; }
         .ev-vacio { padding:28px; text-align:center; color:var(--muted); }
+        /* RQ21: pestaña "Situaciones" */
+        .ev-det { max-width:380px; white-space:normal; }
+        .ev-det-sub { display:block; margin-top:3px; font-size:12px; color:var(--muted); }
+        .ev-btn-rev { display:block; margin-top:6px; padding:6px 12px; border-radius:9px; border:1px solid #bbf7d0; background:#fff; color:#15803d; font-weight:700; cursor:pointer; }
+        .ev-btn-rev:hover { background:#dcfce7; }
+        .ev-btn-rev[disabled] { opacity:.6; cursor:wait; }
     </style>
 
     <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Control en vivo</b></nav>
@@ -69,7 +75,7 @@
             <button type="button" class="ev-tab activa" data-tab="ingresaron" role="tab">Ingresaron</button>
             <button type="button" class="ev-tab" data-tab="pendientes" role="tab">Pendientes</button>
             <button type="button" class="ev-tab" data-tab="expulsados" role="tab">Expulsados</button>
-            <button type="button" class="ev-tab" data-tab="situaciones" role="tab" disabled title="Se completa con el RQ21">Situaciones <small>(RQ21)</small></button>
+            <button type="button" class="ev-tab" data-tab="situaciones" role="tab">Situaciones <small id="ev-sit-n"></small></button>
         </div>
 
         <div class="ev-filtros">
@@ -102,6 +108,8 @@
     const CADA_MS = 5000;
     const URL_EXPULSADOS = @json(route('ingreso.expulsados', $examen));   // RQ20
     const URL_EXPULSAR = @json(route('ingreso.expulsar'));                // RQ20
+    const URL_SITUACIONES = @json(route('ingreso.situaciones', $examen)); // RQ21
+    const URL_REVISAR = @json(route('ingreso.situaciones.revisar', '__ID__')); // RQ21
     const CSRF = document.querySelector('meta[name="csrf-token"]').content;
 
     const $ = (id) => document.getElementById(id);
@@ -112,6 +120,7 @@
     let nuevos = new Set();
     let timer = null;
     let expulsados = [];            // RQ20: expulsados del examen (se pide de nuevo solo cuando cambia su cantidad)
+    let situaciones = [];           // RQ21: situaciones excepcionales del examen (se piden en cada actualización)
 
     $('ev-examen').addEventListener('change', (e) => { if (e.target.value) location.href = URL_EXAMEN.replace('__ID__', e.target.value); });
 
@@ -137,6 +146,10 @@
             if (di.ultimo) desde = di.ultimo;
             contadores(di.resumen);
             if (di.resumen.expulsados !== expulsados.length) { expulsados = (await pedir(URL_EXPULSADOS)).expulsados; }   // RQ20
+            // RQ21: si esta consulta falla (p. ej. falta correr `php artisan migrate`), solo se avisa estando en esta pestaña:
+            // las demás pestañas siguen actualizándose.
+            try { situaciones = (await pedir(URL_SITUACIONES)).situaciones; contarSituaciones(); }
+            catch (errSit) { if (pestana === 'situaciones') throw errSit; }
 
             if (pestana === 'pendientes') {
                 const dp = await pedir(URL_PENDIENTES);
@@ -152,6 +165,12 @@
     }
 
     function texto(t) { return (t || '').toString().toLowerCase(); }
+
+    /** RQ21: en la pestaña se muestra cuántas situaciones siguen pendientes de revisar. */
+    function contarSituaciones() {
+        const n = situaciones.filter((s) => s.estado === 'PENDIENTE').length;
+        $('ev-sit-n').textContent = n ? '(' + n + ')' : '';
+    }
 
     function opcionesFiltro(valores, titulo) {
         const sel = $('ev-filtro');
@@ -207,6 +226,49 @@
                 tbody.appendChild(tr);
             });
             $('ev-pie').textContent = lista.length + ' de ' + expulsados.length + ' expulsados';
+        } else if (pestana === 'situaciones') {
+            // RQ21: hora, categoría, estudiante, detalle, usuario que la registró y estado (con "Marcar revisada")
+            opcionesFiltro(situaciones.map((f) => f.categoria_etiqueta), 'Todas las categorías');
+            lista = situaciones.filter((f) => (!filtro || f.categoria_etiqueta === $('ev-filtro').value)
+                && (!q || texto(f.nombre).includes(q) || texto(f.codigo).includes(q) || texto(f.ci).includes(q) || texto(f.detalle).includes(q)));
+            thead.innerHTML = '<tr><th>Hora</th><th>Categoría</th><th>Estudiante</th><th>Detalle</th><th>Registró</th><th>Estado</th></tr>';
+            lista.forEach((f) => {
+                const tr = document.createElement('tr');
+                celda(tr, f.fecha_hora_local, 'num'); celda(tr, f.categoria_etiqueta);
+
+                const te = document.createElement('td');
+                if (f.nombre) {
+                    const n = document.createElement('span'); n.className = 'strong'; n.textContent = f.nombre; te.appendChild(n);
+                    const c = document.createElement('span'); c.className = 'ev-det-sub'; c.textContent = f.codigo; te.appendChild(c);
+                } else { te.textContent = '—'; }
+                tr.appendChild(te);
+
+                const td = document.createElement('td'); td.className = 'ev-det'; td.textContent = f.detalle;
+                if (f.categoria === 'CAMBIO_AMBIENTE') {
+                    const s = document.createElement('span'); s.className = 'ev-det-sub';
+                    s.textContent = 'Ambiente: ' + (f.ambiente_origen || '—') + ' → ' + (f.ambiente_destino || '—');
+                    td.appendChild(s);
+                }
+                tr.appendChild(td);
+
+                celda(tr, f.registrado_por);
+
+                const ts = document.createElement('td');
+                const b = document.createElement('span');
+                const revisada = f.estado === 'REVISADA';
+                b.className = 'badge ' + (revisada ? 'revisada' : 'pendiente'); b.textContent = revisada ? 'REVISADA' : 'PENDIENTE';
+                ts.appendChild(b);
+                if (revisada) {
+                    const s = document.createElement('span'); s.className = 'ev-det-sub';
+                    s.textContent = (f.revisada_por || '—') + (f.revisada_at_local ? ' · ' + f.revisada_at_local : '');
+                    ts.appendChild(s);
+                } else {
+                    const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'ev-btn-rev'; bt.textContent = 'Marcar revisada'; bt.dataset.id = f.id;
+                    ts.appendChild(bt);
+                }
+                tr.appendChild(ts); tbody.appendChild(tr);
+            });
+            $('ev-pie').textContent = lista.length + ' de ' + situaciones.length + ' situaciones';
         } else {
             opcionesFiltro(pendientes.map((f) => f.grupo), 'Todos los grupos');
             lista = pendientes.filter((f) => (!filtro || f.grupo === $('ev-filtro').value)
@@ -224,7 +286,9 @@
             const tr = document.createElement('tr'); const td = document.createElement('td');
             td.colSpan = 7; td.className = 'ev-vacio';
             td.textContent = pestana === 'ingresaron' ? 'Todavía no hay ingresos que coincidan.'
-                : (pestana === 'expulsados' ? 'No hay estudiantes expulsados que coincidan.' : 'No hay pendientes que coincidan: todos los habilitados ya se presentaron.');
+                : (pestana === 'expulsados' ? 'No hay estudiantes expulsados que coincidan.'
+                : (pestana === 'situaciones' ? 'No hay situaciones excepcionales que coincidan.'
+                : 'No hay pendientes que coincidan: todos los habilitados ya se presentaron.'));
             tr.appendChild(td); tbody.appendChild(tr);
         }
     }
@@ -233,7 +297,7 @@
         pestana = b.dataset.tab;
         document.querySelectorAll('.ev-tab').forEach((x) => x.classList.toggle('activa', x === b));
         $('ev-buscar').value = ''; $('ev-filtro').value = '';
-        if (pestana === 'pendientes' || pestana === 'expulsados') { await actualizar(); } else { pintar(); }
+        if (pestana === 'pendientes' || pestana === 'expulsados' || pestana === 'situaciones') { await actualizar(); } else { pintar(); }
     }));
     $('ev-buscar').addEventListener('input', pintar);
     $('ev-filtro').addEventListener('change', pintar);
@@ -294,6 +358,30 @@
             $('exp-error').style.display = 'block';
         } finally {
             confirmar.disabled = !motivoValido();
+        }
+    });
+
+    // ---------- RQ21: marcar una situación excepcional como REVISADA ----------
+    $('ev-tbody').addEventListener('click', async (e) => {
+        const bt = e.target.closest('.ev-btn-rev');
+        if (!bt) return;
+        bt.disabled = true;
+        bt.textContent = 'Guardando…';
+        try {
+            const res = await fetch(URL_REVISAR.replace('__ID__', bt.dataset.id), {
+                method: 'PATCH', credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || !json.situacion) throw new Error(json.mensaje || json.message || ('HTTP ' + res.status));
+            situaciones = situaciones.map((s) => (s.id === json.situacion.id ? json.situacion : s));
+            contarSituaciones();
+            pintar();
+        } catch (err) {
+            // No se pudo guardar: el botón queda para volver a intentarlo, con el motivo al pasar el mouse.
+            bt.disabled = false;
+            bt.textContent = 'Reintentar';
+            bt.title = err.message || 'No se pudo marcar como revisada.';
         }
     });
 

@@ -123,7 +123,14 @@
                 <h1>Verificación de identidad</h1>
                 <p>Elige el examen, el método de verificación y valida al estudiante antes de dejarlo entrar.</p>
             </div>
+            {{-- RQ21: abre el modal para registrar una situación excepcional (cambio de ambiente, problema de identificación…) --}}
+            <button type="button" class="btn" id="v-situacion">
+                <svg class="i"><use href="#i-alert"/></svg> Registrar situación excepcional
+            </button>
         </div>
+
+        {{-- RQ21: confirmación breve después de guardar una situación excepcional --}}
+        <div class="v-aviso info" id="v-sit-aviso" style="display:none" role="status"></div>
 
         {{-- ================= EXAMEN ================= --}}
         <section class="v-exam" aria-label="Examen">
@@ -231,6 +238,8 @@
             </div>
         </form>
     </dialog>
+
+    @include('verificacion._modal_situacion')
 @endsection
 
 @push('scripts')
@@ -240,6 +249,7 @@
     const URL_VERIFICAR = @json(route('verificacion.verificar'));
     const URL_INGRESO = @json(route('verificacion.ingreso'));
     const URL_INCIDENCIA = @json(route('incidencias.store'));
+    const URL_SITUACION = @json(route('ingreso.situaciones.store'));   // RQ21
     const CSRF = document.querySelector('meta[name="csrf-token"]').content;
     const ZONA = @json(config('sciem.zona_horaria'));
 
@@ -595,7 +605,7 @@
             estadoAmbiente.appendChild(el('b', null, ambiente.nombre));
             estadoAmbiente.appendChild(el('small', null, ambiente.ubicacion || 'Ubicación no registrada'));
             if (!coincide) {
-                estadoAmbiente.appendChild(el('p', null, 'Los cambios excepcionales de ambiente se gestionan como situación excepcional (RQ21), no desde esta pantalla.'));
+                estadoAmbiente.appendChild(el('p', null, 'Si el cambio de ambiente está autorizado, regístralo con «Registrar situación excepcional» (arriba a la derecha).'));
             }
             card.appendChild(estadoAmbiente);
         }
@@ -797,6 +807,109 @@
             errSup.style.display = 'block';
         } finally {
             guardar.disabled = false;
+        }
+    });
+
+    // ---------- RQ21: situación excepcional (categoría, estudiante opcional, ambiente destino y detalle) ----------
+    // La hora y el usuario los pone el servidor: aquí NO se envía ninguno.
+    const sit = (id) => document.getElementById(id);
+    const dlgSit = sit('modal-situacion');
+    const formSit = sit('form-situacion');
+    const REQUIEREN_ESTUDIANTE = ['CAMBIO_AMBIENTE', 'ESTUDIANTE_NO_HABILITADO'];
+    let guardandoSit = false;
+    let avisoSitTimer = null;
+
+    function situacionValida() {
+        const cat = sit('sit-categoria').value;
+        if (!cat) return false;
+        if (sit('sit-detalle').value.trim().length < 5) return false;
+        if (cat === 'CAMBIO_AMBIENTE' && !sit('sit-destino').value) return false;
+        if (REQUIEREN_ESTUDIANTE.includes(cat) && !sit('sit-estudiante').value.trim()) return false;
+        return true;
+    }
+
+    /** Muestra u oculta el ambiente destino según la categoría y deja "Guardar" activo solo si el formulario está completo. */
+    function refrescarSituacion() {
+        const cat = sit('sit-categoria').value;
+        sit('sit-bloque-destino').style.display = cat === 'CAMBIO_AMBIENTE' ? '' : 'none';
+        sit('sit-estudiante-nota').textContent = REQUIEREN_ESTUDIANTE.includes(cat) ? 'obligatorio' : 'opcional';
+        sit('sit-cuenta').textContent = sit('sit-detalle').value.length + ' / 1000';
+        if (!guardandoSit) sit('sit-guardar').disabled = !situacionValida();
+    }
+
+    sit('v-situacion').addEventListener('click', () => {
+        if (!examenId()) { mostrarMensaje('warn', 'Selecciona el examen primero.'); return; }
+        formSit.reset();
+        sit('sit-examen').textContent = selExamen.options[selExamen.selectedIndex].textContent.replace(/\s+/g, ' ').trim();
+        // Si acaba de verificar a un estudiante, se propone como el estudiante de la situación (se puede borrar o cambiar).
+        sit('sit-estudiante').value = ultimo ? (ultimo.codigo || '') : '';
+        sit('sit-estudiante-nombre').textContent = ultimo
+            ? 'Último estudiante verificado: ' + (ultimo.estudiante.nombres + ' ' + ultimo.estudiante.apellidos).trim()
+            : 'Déjalo vacío si la situación no es de un estudiante en particular.';
+        sit('sit-error').style.display = 'none';
+        refrescarSituacion();
+        dlgSit.showModal();
+        sit('sit-categoria').focus();
+    });
+
+    ['sit-categoria', 'sit-destino', 'sit-detalle'].forEach((id) => sit(id).addEventListener('input', refrescarSituacion));
+    sit('sit-estudiante').addEventListener('input', () => {
+        sit('sit-estudiante').value = sit('sit-estudiante').value.replace(/\D/g, '');
+        // Si se cambia el código, deja de ser "el último verificado".
+        if (!ultimo || sit('sit-estudiante').value !== ultimo.codigo) sit('sit-estudiante-nombre').textContent = '';
+        refrescarSituacion();
+    });
+
+    function avisoSituacion(texto) {
+        const caja = sit('v-sit-aviso');
+        caja.textContent = texto;
+        caja.style.display = 'block';
+        clearTimeout(avisoSitTimer);
+        avisoSitTimer = setTimeout(() => { caja.style.display = 'none'; }, 10000);
+    }
+
+    formSit.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        if (guardandoSit || !situacionValida() || !examenId()) return;
+        guardandoSit = true;
+        const guardar = sit('sit-guardar');
+        guardar.disabled = true;
+        guardar.textContent = 'Guardando…';
+        sit('sit-error').style.display = 'none';
+
+        const cat = sit('sit-categoria').value;
+        const cuerpo = { examen_id: examenId(), categoria: cat, detalle: sit('sit-detalle').value.trim() };
+        const ref = sit('sit-estudiante').value.trim();
+        if (ref) {
+            if (ultimo && ref === ultimo.codigo) cuerpo.estudiante_id = ultimo.estudiante.id;
+            else cuerpo.estudiante_ref = ref;
+        }
+        if (cat === 'CAMBIO_AMBIENTE') cuerpo.ambiente_destino_id = Number(sit('sit-destino').value);
+
+        try {
+            const { res, json } = await enviar(URL_SITUACION, cuerpo);
+            if (res.ok && json.situacion) {
+                dlgSit.close();
+                sonidoOk();
+                const s = json.situacion;
+                avisoSituacion('Situación excepcional registrada: ' + s.categoria_etiqueta
+                    + (s.nombre ? ' · ' + s.nombre : '') + ' · ' + s.fecha_hora_local
+                    + '. Aparece en Control en vivo › Situaciones.');
+                agregarHistorial({ clase: 'warn', titulo: 'SITUACIÓN' }, s.nombre || s.categoria_etiqueta);
+            } else {
+                sonidoError();
+                sit('sit-error').textContent = json.errors ? Object.values(json.errors)[0][0]
+                    : (json.mensaje || json.message || 'No se pudo registrar la situación. Inténtalo de nuevo.');
+                sit('sit-error').style.display = 'block';
+            }
+        } catch (e) {
+            sonidoError();
+            sit('sit-error').textContent = 'Error de conexión con el servidor. Inténtalo de nuevo.';
+            sit('sit-error').style.display = 'block';
+        } finally {
+            guardandoSit = false;
+            guardar.textContent = 'Guardar situación';
+            refrescarSituacion();
         }
     });
 
