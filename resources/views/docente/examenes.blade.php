@@ -1,12 +1,12 @@
 @extends('layouts.app')
-@section('title', 'Exámenes')
+@section('title', 'Habilitar estudiantes')
 
 @section('content')
-    <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Exámenes</b></nav>
+    <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Habilitar estudiantes</b></nav>
 
     <div class="head">
         <div>
-            <h1>Habilitación de estudiantes</h1>
+            <h1>Habilitar estudiantes</h1>
             <p>Elige un examen para habilitar o inhabilitar a sus estudiantes y registrar el motivo.</p>
         </div>
     </div>
@@ -30,7 +30,7 @@
         <div class="scroll">
             <table>
                 <thead>
-                    <tr><th>Asignatura</th><th>Carrera</th><th>Fecha y hora</th><th>Ambiente</th><th>Estado</th><th>Habilitados</th><th style="text-align:right">Acciones</th></tr>
+                    <tr><th>Asignatura</th><th>Carrera</th><th>Fecha y hora</th><th>Ambiente</th><th>Estado</th><th>Habilitados</th><th class="t-right">Acciones</th></tr>
                 </thead>
                 <tbody>
                 @forelse ($examenes as $e)

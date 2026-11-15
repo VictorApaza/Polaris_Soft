@@ -56,7 +56,7 @@
                     <tr>
                         <th>Asignatura / Carrera</th><th>Fecha</th><th>Hora inicio</th><th>Duración</th>
                         <th>Ambiente / Aula</th><th>Capacidad / Asign.</th><th>Estado</th>
-                        <th style="text-align:right">Acciones</th>
+                        <th class="t-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>

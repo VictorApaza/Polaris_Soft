@@ -1,8 +1,8 @@
 @extends('layouts.app')
-@section('title', 'Materias')
+@section('title', 'Mis materias')
 
 @section('content')
-    <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Materias</b></nav>
+    <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Mis materias</b></nav>
 
     <div class="head">
         <div>

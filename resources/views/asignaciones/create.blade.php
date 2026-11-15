@@ -74,7 +74,7 @@
         <section class="card">
             <div class="scroll">
                 <table style="min-width:520px">
-                    <thead><tr><th>Materia</th><th>Grupo</th><th>Docente</th><th style="text-align:right">Acción</th></tr></thead>
+                    <thead><tr><th>Materia</th><th>Grupo</th><th>Docente</th><th class="t-right">Acción</th></tr></thead>
                     <tbody>
                     @forelse ($asignaciones as $a)
                         <tr>

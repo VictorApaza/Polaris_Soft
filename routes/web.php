@@ -105,18 +105,19 @@ Route::get('/qr/{estudiante}', [EstudianteQrController::class, 'publico'])->midd
 
 // --- Docente ---
 Route::middleware(['auth', 'role:docente'])->group(function () {
-    Route::get('/docente/dashboard', fn () => view('docente.dashboard'));
+    Route::get('/docente/dashboard', [DashboardController::class, 'docente'])->name('docente.dashboard');
     Route::get('/docente/examenes', [DocenteExamenController::class, 'index'])->name('docente.examenes');
     Route::get('/docente/materias', [DocenteMateriaController::class, 'index'])->name('docente.materias');
 });
 
 // --- Personal de control ---
 Route::middleware(['auth', 'role:control'])->group(function () {
-    Route::get('/control/dashboard', fn () => view('control.dashboard'));
+    Route::get('/control/dashboard', [DashboardController::class, 'control'])->name('control.dashboard');
 });
 
-// --- Verificación de ingreso (administrador, control y docente: el docente solo en los exámenes de sus materias) ---
-Route::middleware(['auth', 'role:administrador,control,docente'])->group(function () {
+// --- Verificación de ingreso: la hace el personal de control y el docente (solo en los exámenes de sus materias).
+//     El administrador NO verifica ingresos (separación de funciones): audita desde Control en vivo, Reportes y Transparencia. ---
+Route::middleware(['auth', 'role:control,docente'])->group(function () {
     Route::get('/verificacion', [VerificacionController::class, 'index'])->name('verificacion.index');
     Route::post('/verificacion/verificar', [VerificacionController::class, 'verificar'])->name('verificacion.verificar');
     Route::post('/verificacion/ingreso', [VerificacionController::class, 'ingreso'])->name('verificacion.ingreso');
@@ -128,7 +129,7 @@ Route::middleware(['auth', 'role:administrador,control,docente'])->group(functio
 });
 
 // Alias antiguo de la verificación: ahora también exige rol (antes cualquier usuario logueado podía usarlo).
-Route::middleware(['auth', 'role:administrador,control,docente'])->group(function () {
+Route::middleware(['auth', 'role:control,docente'])->group(function () {
     Route::get('/control-ingreso', [VerificacionController::class, 'index'])->name('ingreso.index');
     Route::post('/control-ingreso/verificar', [VerificacionController::class, 'verificar'])->name('ingreso.verificar');
     Route::post('/control-ingreso/ingreso', [VerificacionController::class, 'ingreso'])->name('ingreso.ingreso');

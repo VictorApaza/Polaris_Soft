@@ -167,15 +167,14 @@ class Rq21SituacionExcepcionalTest extends TestCase
 
     public function test_el_origen_es_el_aula_donde_ingreso_el_estudiante(): void
     {
-        // A ya ingresó al Aula B (distinta de la asignada al examen): el origen debe ser esa.
-        Ingreso::where('estudiante_id', $this->a->id_estudiante)->where('examen_id', $this->examen->id)->delete();
+        // B ya ingresó al Aula B (distinta de la asignada al examen): el origen debe ser esa.
         Ingreso::create([
-            'estudiante_id' => $this->a->id_estudiante, 'examen_id' => $this->examen->id,
+            'estudiante_id' => $this->b->id_estudiante, 'examen_id' => $this->examen->id,
             'ambiente_id' => $this->aulaB->id, 'controlador_id' => $this->control->id, 'metodo_verificacion' => 'QR',
         ]);
 
         $this->registrar([
-            'categoria' => 'CAMBIO_AMBIENTE', 'estudiante_id' => $this->a->id_estudiante, 'ambiente_destino_id' => $this->aulaA->id,
+            'categoria' => 'CAMBIO_AMBIENTE', 'estudiante_id' => $this->b->id_estudiante, 'ambiente_destino_id' => $this->aulaA->id,
         ])->assertCreated()
             ->assertJsonPath('situacion.ambiente_origen', 'Aula R21 B')
             ->assertJsonPath('situacion.ambiente_destino', 'Aula R21 A');

@@ -1,88 +1,71 @@
 @extends('layouts.app')
-@section('title', 'Dashboard')
+@section('title', 'Inicio')
 
 @section('content')
-    <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Dashboard</b></nav>
+    <nav class="crumb" aria-label="Ruta"><b>Inicio</b></nav>
 
     <div class="head">
         <div>
-            <h1>Panel principal</h1>
-            <p>Resumen de la gestión académica.</p>
+            <h1>Panel del administrador</h1>
+            <p>Resumen de la gestión académica y accesos a las tareas más frecuentes.</p>
         </div>
         <span class="chip"><span class="dot"></span> Periodo actual <b>Semestre {{ $periodo }}</b></span>
     </div>
 
+    @include('partials.flash')
+
     <section class="stats">
         <div class="stat">
-            <div><small>Estudiantes registrados</small><strong>{{ number_format($stats['estudiantes']) }}</strong><em class="green">● Habilitados</em></div>
+            <div><small>Estudiantes registrados</small><strong>{{ number_format($stats['estudiantes']) }}</strong></div>
             <span class="ic"><svg class="i"><use href="#i-students"/></svg></span>
         </div>
         <div class="stat">
-            <div><small>Docentes registrados</small><strong>{{ number_format($stats['docentes']) }}</strong><em>Semestre {{ $periodo }}</em></div>
+            <div><small>Docentes registrados</small><strong>{{ number_format($stats['docentes']) }}</strong></div>
             <span class="ic"><svg class="i"><use href="#i-users"/></svg></span>
         </div>
         <div class="stat">
-            <div><small>Usuarios del sistema</small><strong>{{ number_format($stats['usuarios']) }}</strong><em>3 roles activos</em></div>
+            <div><small>Usuarios del sistema</small><strong>{{ number_format($stats['usuarios']) }}</strong></div>
             <span class="ic"><svg class="i"><use href="#i-users"/></svg></span>
         </div>
         <div class="stat">
-            <div><small>Exámenes próximos</small><strong>{{ number_format($stats['examenes']) }}</strong><em class="blue">● Programados</em></div>
+            <div><small>Exámenes próximos</small><strong>{{ number_format($stats['examenes']) }}</strong></div>
             <span class="ic"><svg class="i"><use href="#i-calendar"/></svg></span>
         </div>
     </section>
 
-    <div class="section-title">
-        <span><svg class="i sm"><use href="#i-arrow"/></svg> Accesos rápidos</span>
-        <a href="#">Operaciones frecuentes del Sprint 1</a>
-    </div>
-    <section class="quick">
+    <div class="section-title"><span><svg class="i sm"><use href="#i-arrow"/></svg> Tareas frecuentes</span></div>
+    <section class="tareas-guia">
         <a href="{{ route('estudiantes.index') }}">
             <span class="ic"><svg class="i"><use href="#i-user-plus"/></svg></span>
-            <div><b>+ Registrar estudiante</b><small>Incorporar al padrón académico</small></div>
+            <div><b>Registrar estudiantes</b><small>Uno por uno o importando un archivo</small></div>
+            <svg class="i go"><use href="#i-arrow"/></svg>
+        </a>
+        <a href="{{ route('docentes.index') }}">
+            <span class="ic"><svg class="i"><use href="#i-users"/></svg></span>
+            <div><b>Registrar docentes</b><small>Uno por uno o importando Excel / CSV</small></div>
             <svg class="i go"><use href="#i-arrow"/></svg>
         </a>
         <a href="{{ route('examenes.index') }}">
             <span class="ic"><svg class="i"><use href="#i-exams"/></svg></span>
-            <div><b>+ Registrar examen</b><small>Programar fecha, aula y normativa</small></div>
+            <div><b>Programar un examen</b><small>Fecha, hora y ambiente</small></div>
+            <svg class="i go"><use href="#i-arrow"/></svg>
+        </a>
+        <a href="{{ route('materias.index') }}">
+            <span class="ic soft"><svg class="i"><use href="#i-book"/></svg></span>
+            <div><b>Materias y grupos</b><small>Docente a cargo de cada grupo</small></div>
             <svg class="i go"><use href="#i-arrow"/></svg>
         </a>
         <a href="{{ route('usuarios.index') }}">
-            <span class="ic soft"><svg class="i"><use href="#i-users"/></svg></span>
-            <div><b>Administrar usuarios</b><small>Control de roles, accesos y permisos</small></div>
+            <span class="ic soft"><svg class="i"><use href="#i-lock"/></svg></span>
+            <div><b>Cuentas y roles</b><small>Solo el administrador cambia roles</small></div>
+            <svg class="i go"><use href="#i-arrow"/></svg>
+        </a>
+        <a href="{{ route('transparencia.index') }}">
+            <span class="ic soft"><svg class="i"><use href="#i-shield"/></svg></span>
+            <div><b>Transparencia</b><small>Auditoría de ingresos y accesos</small></div>
             <svg class="i go"><use href="#i-arrow"/></svg>
         </a>
     </section>
 
-    <div class="section-title">
-        <span><svg class="i sm"><use href="#i-exams"/></svg> Próximos exámenes</span>
-        <a href="{{ route('examenes.index') }}">Ver cronograma completo ›</a>
-    </div>
-    <section class="card">
-        <div class="scroll">
-            <table>
-                <thead>
-                    <tr><th>Asignatura</th><th>Fecha</th><th>Hora</th><th>Ambiente</th><th>Estado</th><th style="text-align:right">Acción</th></tr>
-                </thead>
-                <tbody>
-                @forelse ($proximos as $e)
-                    <tr>
-                        <td class="strong"><span class="with-dot">{{ $e->asignatura->nombre ?? $e->materia->nombre ?? '—' }}</span>
-                            <span class="sub" style="margin-left:16px">{{ $e->carrera }}{{ $e->asignatura?->codigo ? ' · Código '.$e->asignatura->codigo : ($e->materia?->sigla ? ' · Código '.$e->materia->sigla : '') }}</span></td>
-                        <td class="num">{{ $e->fecha->format('d/m/Y') }}</td>
-                        <td class="num">{{ $e->hora }}</td>
-                        <td><span class="place"><svg class="i sm"><use href="#i-building"/></svg>{{ $e->ambiente }}</span></td>
-                        <td><span class="badge {{ $e->estado }}">{{ \App\Models\Examen::ESTADOS[$e->estado] ?? $e->estado }}</span></td>
-                        <td style="text-align:right"><a class="link-btn" href="{{ route('examenes.index', ['buscar' => $e->asignatura->nombre ?? $e->materia->nombre ?? '']) }}">Detalle ›</a></td>
-                    </tr>
-                @empty
-                    <tr><td colspan="6" class="empty">No hay exámenes programados. <a href="{{ route('examenes.index') }}">Registrar un examen</a></td></tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
-        <div class="foot">
-            <span>Mostrando los {{ $proximos->count() }} exámenes programados más próximos</span>
-            <span class="okline"><svg class="i sm"><use href="#i-check"/></svg> Sincronizado con base de datos central</span>
-        </div>
-    </section>
+    @include('partials.proximos-examenes')
 @endsection

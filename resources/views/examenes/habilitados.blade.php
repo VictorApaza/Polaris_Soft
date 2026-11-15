@@ -53,7 +53,7 @@
                         <tr>
                             <th style="width:36px"><input type="checkbox" id="check-todos" aria-label="Seleccionar todos"></th>
                             <th>Código</th><th>Estudiante</th><th>Grupo</th><th>Estado</th><th>Motivo / Observación</th>
-                            <th style="text-align:right">Acciones</th>
+                            <th class="t-right">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
