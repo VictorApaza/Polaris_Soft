@@ -47,6 +47,15 @@ class Docente extends Model
         return $docente;
     }
 
+    /** IDs de los estudiantes que están en los grupos de este docente. */
+    public function estudianteIds(): array
+    {
+        $grupoIds = Grupo::where('docente_id', $this->id)->pluck('id');
+
+        return Asignacion::where(fn ($w) => $w->whereIn('grupo_id', $grupoIds)->orWhere('docente_id', $this->id))
+            ->pluck('estudiante_id')->unique()->map(fn ($v) => (int) $v)->all();
+    }
+
     /** "7123456-1A" (con complemento) o "7123456". */
     public function getCarnetCompletoAttribute(): string
     {

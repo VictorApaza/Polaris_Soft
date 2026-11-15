@@ -2,11 +2,11 @@
 
 use App\Http\Controllers\AccesoLogController;
 use App\Http\Controllers\AsignacionController;
-use App\Http\Controllers\AsignacionApiController;
 use App\Http\Controllers\AmbienteController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BuscadorEstudiantesController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ControlEnVivoController;
 use App\Http\Controllers\DocenteController;
 use App\Http\Controllers\DocenteExamenController;
 use App\Http\Controllers\DocenteMateriaController;
@@ -14,13 +14,17 @@ use App\Http\Controllers\EstudianteController;
 use App\Http\Controllers\EstudiantePortalController;
 use App\Http\Controllers\EstudianteQrController;
 use App\Http\Controllers\ExamenController;
+use App\Http\Controllers\ExpulsionController;
 use App\Http\Controllers\FotoEstudianteController;
 use App\Http\Controllers\GrupoController;
 use App\Http\Controllers\HabilitacionController;
+use App\Http\Controllers\FotoCargaController;
 use App\Http\Controllers\IncidenciaController;
+use App\Http\Controllers\IntentoIngresoController;
 use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\SituacionExcepcionalController;
 use App\Http\Controllers\TransparenciaIngresoController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VerificacionController;
@@ -50,8 +54,6 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
 
     Route::resource('estudiantes', EstudianteController::class)->except(['create', 'show', 'edit']);
-    Route::get('/estudiantes/{estudiante}/asignaciones/create', [AsignacionController::class, 'create'])
-        ->whereNumber('estudiante');
     Route::post('/estudiantes/{estudiante}/restablecer-password', [EstudianteController::class, 'restablecerPassword'])->name('estudiantes.password.restablecer');
 
     // Código QR del estudiante (RQ7)
@@ -70,20 +72,6 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::get('/estudiantes/{estudiante}/asignaciones', [AsignacionController::class, 'create'])->name('asignaciones.create');
     Route::post('/estudiantes/{estudiante}/asignaciones', [AsignacionController::class, 'store'])->name('asignaciones.store');
     Route::delete('/asignaciones/{asignacion}', [AsignacionController::class, 'destroy'])->name('asignaciones.destroy');
-
-    // Estas rutas conservan la sesión y la protección CSRF de la aplicación.
-    Route::prefix('api')->name('api.')->group(function () {
-        Route::get('/materias', [AsignacionApiController::class, 'materias'])->name('materias.index');
-        Route::get('/materias/{materia}/grupos', [AsignacionApiController::class, 'grupos'])
-            ->whereNumber('materia')
-            ->name('materias.grupos');
-        Route::get('/grupos/{grupo}/docentes', [AsignacionApiController::class, 'docentes'])
-            ->whereNumber('grupo')
-            ->name('grupos.docentes');
-        Route::post('/estudiantes/{estudiante}/asignaciones', [AsignacionApiController::class, 'store'])
-            ->whereNumber('estudiante')
-            ->name('estudiantes.asignaciones.store');
-    });
 
     Route::resource('examenes', ExamenController::class)
         ->parameters(['examenes' => 'examen'])
@@ -117,18 +105,19 @@ Route::get('/qr/{estudiante}', [EstudianteQrController::class, 'publico'])->midd
 
 // --- Docente ---
 Route::middleware(['auth', 'role:docente'])->group(function () {
-    Route::get('/docente/dashboard', fn () => view('docente.dashboard'));
+    Route::get('/docente/dashboard', [DashboardController::class, 'docente'])->name('docente.dashboard');
     Route::get('/docente/examenes', [DocenteExamenController::class, 'index'])->name('docente.examenes');
     Route::get('/docente/materias', [DocenteMateriaController::class, 'index'])->name('docente.materias');
 });
 
 // --- Personal de control ---
 Route::middleware(['auth', 'role:control'])->group(function () {
-    Route::redirect('/control/dashboard', '/verificacion');
+    Route::get('/control/dashboard', [DashboardController::class, 'control'])->name('control.dashboard');
 });
 
-// --- Verificación de ingreso (administrador, control y docente: el docente solo en los exámenes de sus materias) ---
-Route::middleware(['auth', 'role:administrador,control,docente'])->group(function () {
+// --- Verificación de ingreso: la hace el personal de control y el docente (solo en los exámenes de sus materias).
+//     El administrador NO verifica ingresos (separación de funciones): audita desde Control en vivo, Reportes y Transparencia. ---
+Route::middleware(['auth', 'role:control,docente'])->group(function () {
     Route::get('/verificacion', [VerificacionController::class, 'index'])->name('verificacion.index');
     Route::post('/verificacion/verificar', [VerificacionController::class, 'verificar'])->name('verificacion.verificar');
     Route::post('/verificacion/ingreso', [VerificacionController::class, 'ingreso'])->name('verificacion.ingreso');
@@ -140,10 +129,36 @@ Route::middleware(['auth', 'role:administrador,control,docente'])->group(functio
 });
 
 // Alias antiguo de la verificación: ahora también exige rol (antes cualquier usuario logueado podía usarlo).
-Route::middleware(['auth', 'role:administrador,control,docente'])->group(function () {
+Route::middleware(['auth', 'role:control,docente'])->group(function () {
     Route::get('/control-ingreso', [VerificacionController::class, 'index'])->name('ingreso.index');
     Route::post('/control-ingreso/verificar', [VerificacionController::class, 'verificar'])->name('ingreso.verificar');
     Route::post('/control-ingreso/ingreso', [VerificacionController::class, 'ingreso'])->name('ingreso.ingreso');
+});
+
+// --- Control en vivo (RQ14 ingresaron, RQ15 pendientes) e intentos rechazados (RQ12) ---
+Route::middleware(['auth', 'role:administrador,control,docente'])->group(function () {
+    Route::get('/control-ingreso/en-vivo', [ControlEnVivoController::class, 'vista'])->name('en-vivo.index');
+    Route::get('/control-ingreso/examen/{examen}/en-vivo', [ControlEnVivoController::class, 'vista'])->name('en-vivo.examen');
+    Route::get('/control-ingreso/examen/{examen}/ingresados', [ControlEnVivoController::class, 'ingresados'])->name('ingreso.ingresados');
+    Route::get('/control-ingreso/examen/{examen}/pendientes', [ControlEnVivoController::class, 'pendientes'])->name('ingreso.pendientes');
+    Route::get('/intentos-ingreso/examen/{examen}', [IntentoIngresoController::class, 'porExamen'])->name('intentos.examen');
+    // RQ20: expulsar a un estudiante que ya ingresó y listar los expulsados del examen.
+    Route::post('/control-ingreso/expulsiones', [ExpulsionController::class, 'store'])->name('ingreso.expulsar');
+    Route::get('/control-ingreso/examen/{examen}/expulsados', [ExpulsionController::class, 'porExamen'])->name('ingreso.expulsados');
+    // RQ21: situaciones excepcionales (problemas de identificación, cambios de ambiente…): registrar, listar y marcar como revisadas.
+    Route::post('/control-ingreso/situaciones', [SituacionExcepcionalController::class, 'store'])->name('ingreso.situaciones.store');
+    Route::get('/control-ingreso/examen/{examen}/situaciones', [SituacionExcepcionalController::class, 'porExamen'])->name('ingreso.situaciones');
+    Route::patch('/control-ingreso/situaciones/{situacion}/revisar', [SituacionExcepcionalController::class, 'revisar'])->name('ingreso.situaciones.revisar');
+});
+
+// --- Fotos (RQ29): cargar (individual o ZIP) y consultar por código, CI o QR ---
+Route::middleware(['auth', 'role:administrador,docente'])->group(function () {
+    Route::get('/fotos/cargar', [FotoCargaController::class, 'index'])->name('fotos.cargar');
+    Route::post('/fotos/individual', [FotoCargaController::class, 'individual'])->name('fotos.individual');
+    Route::post('/fotos/zip', [FotoCargaController::class, 'zip'])->name('fotos.zip');
+});
+Route::middleware(['auth', 'role:administrador,control,docente'])->group(function () {
+    Route::get('/fotos/consultar', [FotoCargaController::class, 'consultar'])->name('fotos.consultar');
 });
 
 // --- Transparencia de ingreso (RQ8) ---

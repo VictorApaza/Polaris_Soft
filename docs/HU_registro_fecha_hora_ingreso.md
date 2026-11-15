@@ -1,17 +1,18 @@
 # H.U. · Registrar automáticamente la fecha y hora de ingreso del estudiante
 
-Depende de RQ9 (verificar habilitación y botón "Autorizar ingreso") y de RQ8 (`transparencia_ingreso`).
+Depende de RQ9 (verificar habilitación y botón "Registrar ingreso") y de RQ8 (`transparencia_ingreso`).
 
 | Tarea del backlog | Dónde quedó |
 |---|---|
 | Migración de la tabla `ingreso` (estudiante_id, examen_id, ambiente_id, controlador_id, metodo_verificacion, fecha_hora_ingreso) con índices por examen y estudiante | `database/migrations/2026_10_23_000002_create_ingreso_table.php` + `app/Models/Ingreso.php` |
 | Hora desde el servidor con zona `America/La_Paz` (aplicación y MySQL), ignorando lo que mande el cliente | `config/app.php` (`APP_TIMEZONE`), `config/database.php` (`DB_TIMEZONE = -04:00`), `Ingreso::booted()` fija la hora al crear |
 | Registrar dentro de una transacción al autorizar, sin edición posterior, y devolver la hora (coherente con `transparencia_ingreso`, RQ8) | `app/Services/IngresoService.php` (usado por `VerificacionController::ingreso()` y `TransparenciaIngresoController::registrar()`) |
-| Mostrar la hora (dd/mm/aaaa HH:mm:ss) al controlador y, si falla el guardado, mostrar el error con opción de reintentar | `resources/views/verificacion/index.blade.php` (botón **Autorizar ingreso** → banner "INGRESO REGISTRADO"; error con botón **Reintentar**) |
+| Validar que el ambiente de control coincida con el asignado, y guardar el ingreso asociado al ambiente seleccionado | `VerificacionController::ingreso()` + `IngresoService::registrar()` |
+| Mostrar la hora (dd/mm/aaaa HH:mm:ss) al controlador y, si falla el guardado, mostrar el error con opción de reintentar | `resources/views/verificacion/index.blade.php` (botón **Registrar ingreso** → banner "INGRESO REGISTRADO"; error con botón **Reintentar**) |
 
 ## Cómo funciona
 
-1. El controlador verifica al estudiante (verde = habilitado) y presiona **Autorizar ingreso** (`POST /verificacion/ingreso`).
+1. El controlador verifica al estudiante en el ambiente seleccionado. Solo si coincide con el ambiente asignado aparece **Registrar ingreso** (`POST /verificacion/ingreso`).
 2. `IngresoService::registrar()` abre **una transacción** y guarda:
    - la fila de `ingreso` (la hora la pone el modelo con el reloj del servidor, sin segundos fraccionarios), y
    - la fila de `transparencia_ingreso` con **exactamente la misma hora**.
@@ -33,7 +34,7 @@ El cliente **no envía** fecha ni hora. Si manda `fecha_hora_ingreso`, `fecha_ho
 |---|---|---|
 | 201 | Guardado | Banner verde "INGRESO REGISTRADO" con la hora |
 | 409 | Ya estaba registrado (doble clic, o reintento cuando se perdió la respuesta) | Banner ámbar "INGRESO YA REGISTRADO" con la hora original; no duplica |
-| 422 | No habilitado / no activo | Mensaje de error, **sin** Reintentar (reintentar no cambia nada) |
+| 422 | No habilitado / no activo / ambiente incorrecto | Mensaje de error, **sin** Reintentar (reintentar no cambia nada) |
 | 500 / sin red | Falló el guardado (no se guardó nada) | Mensaje de error + botón **Reintentar** |
 
 ## Zona horaria: qué cambia
@@ -47,9 +48,9 @@ El cliente **no envía** fecha ni hora. Si manda `fecha_hora_ingreso`, `fecha_ho
 ## Cómo probar
 
 1. `php artisan migrate`.
-2. En **Verificación**, elige un examen y verifica a un estudiante habilitado → **Autorizar ingreso**.
+2. En **Verificación**, elige un examen y confirma que el ambiente de control coincida con el asignado → **Registrar ingreso**.
 3. Debe aparecer "INGRESO REGISTRADO" con la hora `dd/mm/aaaa HH:mm:ss` en hora de Bolivia.
 4. En la base: `SELECT * FROM ingreso;` y `SELECT * FROM transparencia_ingreso;` → misma `fecha_hora_ingreso`.
 5. Intenta editarlo: `UPDATE ingreso SET metodo_verificacion='CI';` → error del trigger (MySQL).
-6. Prueba el error: apaga la base (o desconecta la red) y presiona **Autorizar ingreso** → mensaje de error y botón **Reintentar**; al volver la conexión, **Reintentar** guarda una sola vez.
+6. Prueba el error: apaga la base (o desconecta la red) y presiona **Registrar ingreso** → mensaje de error y botón **Reintentar**; al volver la conexión, **Reintentar** guarda una sola vez.
 7. Prueba que se ignora la hora del cliente: `POST /verificacion/ingreso` con `"fecha_hora_ingreso": "2000-01-01 00:00:00"` → se guarda la hora del servidor.

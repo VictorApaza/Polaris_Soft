@@ -10,6 +10,7 @@
             <p>Registrar y administrar estudiantes que participarán en los exámenes.</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <a class="btn ghost" href="{{ route('fotos.cargar') }}">Cargar fotos</a>
             <a class="btn ghost" href="{{ route('estudiantes.importar.form') }}">
                 <svg class="i"><use href="#i-arrow"/></svg> Importar desde CSV
             </a>
@@ -66,7 +67,7 @@
                     <tr>
                         <th>Código universitario</th><th>Nombre completo</th><th>CI / DNI</th>
                         <th>Facultad / Carrera</th><th>Correo institucional</th><th>Estado</th>
-                        <th style="text-align:right">Acciones</th>
+                        <th class="t-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>

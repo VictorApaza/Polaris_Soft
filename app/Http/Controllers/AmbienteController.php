@@ -58,6 +58,7 @@ class AmbienteController extends Controller
                 'required', 'string', 'max:100',
                 Rule::unique('ambientes', 'nombre')->ignore($actual?->id),
             ],
+            'ubicacion' => ['nullable', 'string', 'max:160'],
             'capacidad' => ['required', 'integer', 'min:1', 'max:5000'],
         ]);
     }

@@ -28,7 +28,7 @@ Acceso: roles `administrador` y `control` (menú lateral → **Transparencia**).
 
 ## Cómo registrar una autorización (para RQ5, RQ6 y RQ7)
 
-Cuando el controlador presiona **"Autorizar ingreso"** tras una verificación exitosa, llamar **una sola vez**:
+Cuando el controlador presiona **"Registrar ingreso"** tras una verificación exitosa y coincidente con el ambiente asignado, llamar **una sola vez**:
 
 **Desde JavaScript dentro de una vista Blade (misma sesión, con CSRF):**
 

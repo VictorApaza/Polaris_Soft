@@ -19,12 +19,12 @@
                 <thead>
                     <tr>
                         <th>Examen</th><th>Fecha y hora</th><th>Aula</th>
-                        <th style="text-align:right">Habilitados</th>
-                        <th style="text-align:right">Ingresaron</th>
-                        <th style="text-align:right">No ingresaron</th>
-                        <th style="text-align:right">Inhabilitados</th>
-                        <th style="text-align:right">Incidencias</th>
-                        <th style="text-align:right">Reporte</th>
+                        <th class="t-right">Habilitados</th>
+                        <th class="t-right">Ingresaron</th>
+                        <th class="t-right">No ingresaron</th>
+                        <th class="t-right">Inhabilitados</th>
+                        <th class="t-right">Incidencias</th>
+                        <th class="t-right">Reporte</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -45,7 +45,7 @@
                                 0
                             @endif
                         </td>
-                        <td style="text-align:right"><a class="link-btn ok" href="{{ route('reportes.show', $x) }}">Ver reporte</a></td>
+                        <td class="t-right"><a class="link-btn ok" href="{{ route('reportes.show', $x) }}">Ver reporte</a></td>
                     </tr>
                 @empty
                     <tr><td colspan="9" class="empty">Todavía no hay exámenes registrados.</td></tr>

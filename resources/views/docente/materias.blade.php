@@ -1,8 +1,8 @@
 @extends('layouts.app')
-@section('title', 'Materias')
+@section('title', 'Mis materias')
 
 @section('content')
-    <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Materias</b></nav>
+    <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Mis materias</b></nav>
 
     <div class="head">
         <div>
@@ -11,6 +11,7 @@
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
             <a class="btn ghost" href="{{ route('estudiantes.plantilla') }}">⬇ Plantilla CSV de estudiantes</a>
+            <a class="btn ghost" href="{{ route('fotos.cargar') }}">Cargar fotos</a>
             <a class="btn" href="{{ route('estudiantes.importar.form') }}"><svg class="i"><use href="#i-plus"/></svg> Importar estudiantes</a>
         </div>
     </div>

@@ -17,7 +17,7 @@
     <section class="card" style="margin-top:20px">
         <div class="scroll">
             <table>
-                <thead><tr><th>Sigla</th><th>Nombre de la asignatura</th><th>Facultad</th><th>Carrera</th><th>Grupos</th><th style="text-align:right">Acciones</th></tr></thead>
+                <thead><tr><th>Sigla</th><th>Nombre de la asignatura</th><th>Facultad</th><th>Carrera</th><th>Grupos</th><th class="t-right">Acciones</th></tr></thead>
                 <tbody>
                 @forelse ($materias as $m)
                     @php $url = route('materias.update', $m); @endphp

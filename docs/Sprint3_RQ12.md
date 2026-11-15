@@ -8,7 +8,7 @@ Si sí es de la materia pero nadie lo habilitó, sigue siendo el caso de RQ9 ("n
 | Detectar que el examen no le corresponde al estudiante | `app/Services/ExamenNoCorrespondeService.php` → `noLeCorresponde()` (archivo nuevo) |
 | Registrar el intento (estudiante, examen, aula, controlador, método, fecha/hora) con motivo `EXAMEN_NO_CORRESPONDE` | `VerificacionController::verificar()` → `registrarIntentoRechazado(...)` en la tabla `intento_ingreso`; la verificación queda en `verificacion` con `resultado = EXAMEN_NO_CORRESPONDE`. No hay migración nueva |
 | Repetir la validación en el servidor aunque se salte la pantalla (HTTP 422 + intento registrado) | `VerificacionController::ingreso()` |
-| Alerta inmediata al personal de control | `resources/views/verificacion/index.blade.php`: banner rojo parpadeante "EXAMEN NO CORRESPONDE", alarma sonora y vibración (celular/tablet), "Intento n.º N", y el examen que **sí** le corresponde (nombre, fecha, hora, aula). El botón "Autorizar ingreso" queda desactivado |
+| Alerta inmediata al personal de control | `resources/views/verificacion/index.blade.php`: banner rojo parpadeante "EXAMEN NO CORRESPONDE", alarma sonora y vibración (celular/tablet), "Intento n.º N", y el examen que **sí** le corresponde (nombre, fecha, hora, aula). El botón "Registrar ingreso" queda desactivado |
 | Base para el reporte de RQ19 | `SELECT ... FROM intento_ingreso WHERE motivo = 'EXAMEN_NO_CORRESPONDE'` (constante `ExamenNoCorrespondeService::MOTIVO`) |
 
 Respuesta JSON nueva (HTTP 422): `tipo = no_corresponde`, `mensaje`, `motivo`, `alerta`, `hora_intento`, `numero_intento`, `examenes_asignados[]` y los datos del estudiante.
@@ -19,7 +19,7 @@ Migraciones, modelos, rutas, `IngresoService`, reportes, incidencias ni las pant
 ## Cómo probar
 1. `php artisan migrate` (no hay migraciones nuevas) y `php artisan migrate:fresh --seed` si quieres datos de ejemplo.
 2. Crea dos exámenes de **asignaturas distintas**: A y B. Un estudiante inscrito solo en B y habilitado en B.
-3. En Verificación elige el examen **A** y verifica a ese estudiante (por código, cédula o QR): banner rojo **EXAMEN NO CORRESPONDE**, sonido, "Intento n.º 1", y abajo "Su examen: B · fecha · hora · aula". "Autorizar ingreso" desactivado.
+3. En Verificación elige el examen **A** y verifica a ese estudiante (por código, cédula o QR): banner rojo **EXAMEN NO CORRESPONDE**, sonido, "Intento n.º 1", y abajo "Su examen: B · fecha · hora · aula". "Registrar ingreso" desactivado.
 4. Verifícalo otra vez: "Intento n.º 2".
 5. En la base:
    `SELECT estudiante_id, examen_id, tipo, resultado, motivo, fecha_hora FROM intento_ingreso WHERE motivo = 'EXAMEN_NO_CORRESPONDE' ORDER BY id DESC;`

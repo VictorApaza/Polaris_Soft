@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Verificación de identidad')
+@section('title', 'Verificar ingreso')
 
 @section('content')
     @php
@@ -21,7 +21,9 @@
         .v-exam select { width: 100%; height: 52px; font-size: 16px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
         .v-aula { background: var(--blue-50); border: 1px solid var(--blue-100); border-radius: 12px; padding: 8px 16px; text-align: center; min-height: 52px; display: flex; flex-direction: column; justify-content: center; }
         .v-aula small { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-        .v-aula b { font-size: 20px; color: var(--blue-700); line-height: 1.1; }
+        .v-aula select { width: 100%; padding: 0 20px 0 0; border: 0; background: transparent; color: var(--blue-700); font-size: 20px; font-weight: 700; line-height: 1.1; text-align: center; cursor: pointer; }
+        .v-aula select:focus { outline: 2px solid var(--blue-600); outline-offset: 3px; border-radius: 4px; }
+        .v-aula select:disabled { color: var(--muted); cursor: not-allowed; }
 
         .v-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
         .v-tab { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 14px; border: 2px solid var(--line); background: #fff; cursor: pointer; text-align: left; transition: .12s; min-height: 64px; }
@@ -74,6 +76,12 @@
         .v-aviso.warn { background: var(--warn-bg); color: var(--warn); }
         .v-aviso.err { background: var(--danger-bg); color: var(--danger); }
         .v-aviso.info { background: var(--blue-50); color: var(--blue-700); }
+        .v-ambiente { margin-top: 16px; padding: 12px 16px; border-radius: 10px; font-size: 14px; }
+        .v-ambiente.ok { background: #cdeccd; color: #166534; }
+        .v-ambiente.err { background: var(--danger-bg); color: var(--danger); }
+        .v-ambiente small, .v-ambiente b { display: block; }
+        .v-ambiente b { font-size: 16px; }
+        .v-ambiente p { margin: 8px 0 0; }
         .v-aviso .btn-mini { height: 38px; padding: 0 18px; margin-left: 12px; font-size: 14px; font-weight: 700; border-radius: 10px; border: 1px solid #f3c2bf; background: #fff; color: var(--danger); cursor: pointer; }
         .v-aviso .btn-mini:hover { background: var(--soft); }
         .v-acciones { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; align-items: center; }
@@ -108,14 +116,21 @@
     </style>
 
     <div class="v-wrap">
-        <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Verificación de identidad</b></nav>
+        <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Verificar ingreso</b></nav>
 
         <div class="head">
             <div>
-                <h1>Verificación de identidad</h1>
+                <h1>Verificar ingreso</h1>
                 <p>Elige el examen, el método de verificación y valida al estudiante antes de dejarlo entrar.</p>
             </div>
+            {{-- RQ21: abre el modal para registrar una situación excepcional (cambio de ambiente, problema de identificación…) --}}
+            <button type="button" class="btn" id="v-situacion">
+                <svg class="i"><use href="#i-alert"/></svg> Registrar situación excepcional
+            </button>
         </div>
+
+        {{-- RQ21: confirmación breve después de guardar una situación excepcional --}}
+        <div class="v-aviso info" id="v-sit-aviso" style="display:none" role="status"></div>
 
         {{-- ================= EXAMEN ================= --}}
         <section class="v-exam" aria-label="Examen">
@@ -124,15 +139,23 @@
                 <select id="v-examen">
                     <option value="">Selecciona el examen…</option>
                     @foreach ($examenes as $x)
-                        <option value="{{ $x->id }}" data-aula="{{ $x->ambiente }}" @selected($sugerido && $sugerido->id === $x->id)>
+                        @php $ambienteExamen = $ambientes->firstWhere('nombre', $x->ambiente); @endphp
+                        <option value="{{ $x->id }}" data-aula-id="{{ $ambienteExamen?->id }}" @selected($sugerido && $sugerido->id === $x->id)>
                             {{ $x->nombre }} · {{ $x->carrera }} · {{ $x->fecha->format('d/m') }} {{ $x->hora }}
                         </option>
                     @endforeach
                 </select>
             </div>
             <div class="v-aula" aria-live="polite">
-                <small>Aula / ambiente</small>
-                <b id="v-aula">—</b>
+                <label for="v-ambiente">Ambiente donde controlo ▾</label>
+                <select id="v-ambiente" aria-label="Ambiente donde controlo" disabled>
+                    <option value="">Selecciona un ambiente…</option>
+                    @foreach ($ambientes as $ambiente)
+                        <option value="{{ $ambiente->id }}" data-ubicacion="{{ $ambiente->ubicacion }}">
+                            {{ $ambiente->nombre }}
+                        </option>
+                    @endforeach
+                </select>
             </div>
         </section>
 
@@ -215,6 +238,8 @@
             </div>
         </form>
     </dialog>
+
+    @include('verificacion._modal_situacion')
 @endsection
 
 @push('scripts')
@@ -224,6 +249,7 @@
     const URL_VERIFICAR = @json(route('verificacion.verificar'));
     const URL_INGRESO = @json(route('verificacion.ingreso'));
     const URL_INCIDENCIA = @json(route('incidencias.store'));
+    const URL_SITUACION = @json(route('ingreso.situaciones.store'));   // RQ21
     const CSRF = document.querySelector('meta[name="csrf-token"]').content;
     const ZONA = @json(config('sciem.zona_horaria'));
 
@@ -237,7 +263,15 @@
     };
 
     const selExamen = document.getElementById('v-examen');
-    const aula = document.getElementById('v-aula');
+    // Desde el Inicio se llega con ?examen=ID: queda elegido el examen y no hay que buscarlo.
+    window.addEventListener('load', () => {
+        const pedido = new URLSearchParams(location.search).get('examen');
+        if (pedido && [...selExamen.options].some((o) => o.value === pedido)) {
+            selExamen.value = pedido;
+            selExamen.dispatchEvent(new Event('change'));
+        }
+    });
+    const selAmbiente = document.getElementById('v-ambiente');
     const form = document.getElementById('v-form');
     const dato = document.getElementById('v-dato');
     const etiqueta = document.getElementById('v-etiqueta');
@@ -333,19 +367,45 @@
     tabs.forEach(t => t.addEventListener('click', () => setMetodo(t.dataset.metodo)));
 
     function examenId() { return selExamen.value ? parseInt(selExamen.value, 10) : null; }
-    function actualizarExamen() {
+    function limpiarResultadoAmbiente() {
+        ultimo = null;
+        resultado.replaceChildren(el('div', 'v-vacio', 'Selecciona un examen y verifica a un estudiante: aquí aparecerán su foto y sus datos.'));
+    }
+    function actualizarExamen(restaurarAmbiente = false) {
         const opt = selExamen.options[selExamen.selectedIndex];
         const hay = !!selExamen.value;
-        aula.textContent = hay ? (opt.dataset.aula || 'Sin aula') : '—';
-        dato.disabled = !hay;
-        btnVerificar.disabled = !hay;
-        if (hay) { dato.focus(); sessionStorage.setItem('sciem_examen', selExamen.value); }
+        const ambienteGuardado = sessionStorage.getItem('sciem_ambiente');
+        const examenGuardado = sessionStorage.getItem('sciem_examen');
+        selAmbiente.value = '';
+        if (restaurarAmbiente && examenGuardado === selExamen.value && ambienteGuardado
+            && [...selAmbiente.options].some(o => o.value === ambienteGuardado)) {
+            selAmbiente.value = ambienteGuardado;
+        } else if (opt.dataset.aulaId && [...selAmbiente.options].some(o => o.value === opt.dataset.aulaId)) {
+            selAmbiente.value = opt.dataset.aulaId;
+        } else if (selAmbiente.options.length === 2) {
+            selAmbiente.selectedIndex = 1;
+        }
+        selAmbiente.disabled = !hay || selAmbiente.options.length <= 1;
+        dato.disabled = !hay || !selAmbiente.value;
+        btnVerificar.disabled = !hay || !selAmbiente.value;
+        limpiarResultadoAmbiente();
+        if (hay) {
+            dato.focus();
+            sessionStorage.setItem('sciem_examen', selExamen.value);
+            if (selAmbiente.value) sessionStorage.setItem('sciem_ambiente', selAmbiente.value);
+        }
     }
-    selExamen.addEventListener('change', actualizarExamen);
+    selExamen.addEventListener('change', () => actualizarExamen());
+    selAmbiente.addEventListener('change', () => {
+        dato.disabled = !selExamen.value || !selAmbiente.value;
+        btnVerificar.disabled = !selExamen.value || !selAmbiente.value;
+        if (selAmbiente.value) sessionStorage.setItem('sciem_ambiente', selAmbiente.value);
+        limpiarResultadoAmbiente();
+    });
     (function restaurar() {
         const guardado = sessionStorage.getItem('sciem_examen');
         if (guardado && [...selExamen.options].some(o => o.value === guardado)) selExamen.value = guardado;
-        actualizarExamen();
+        actualizarExamen(true);
     })();
 
     // ---------- cámara ----------
@@ -392,9 +452,10 @@
         if (ocupado) return;
         const valor = dato.value.trim();
         if (!examenId()) { mostrarMensaje('warn', 'Selecciona el examen primero.'); return; }
+        if (!selAmbiente.value) { mostrarMensaje('warn', 'Selecciona el ambiente donde estás controlando.'); return; }
         if (!valor) { mostrarMensaje('warn', 'Ingresa o escanea el dato del estudiante.'); return; }
 
-        const cuerpo = { id_examen: examenId(), metodo_verificacion: metodo };
+        const cuerpo = { id_examen: examenId(), metodo_verificacion: metodo, ambiente_control_id: selAmbiente.value };
         if (metodo === 'CODIGO_UNIV') cuerpo.codigo_universitario = valor;
         else if (metodo === 'CI') cuerpo.documento_identidad = valor;
         else cuerpo.token_qr = valor;
@@ -402,6 +463,7 @@
         ocupado = true; btnVerificar.disabled = true;
         try {
             const { res, json } = await enviar(URL_VERIFICAR, cuerpo);
+            if (examenId() !== Number(cuerpo.id_examen) || selAmbiente.value !== cuerpo.ambiente_control_id) return;
             if (!json.tipo) {
                 // errores de validación u otros
                 const msg = json.errors ? Object.values(json.errors)[0][0] : (json.message || 'No se pudo verificar.');
@@ -412,7 +474,7 @@
         } catch (e) {
             sonidoError(); mostrarMensaje('no', 'Error de conexión con el servidor. Intenta de nuevo.');
         } finally {
-            ocupado = false; btnVerificar.disabled = false;
+            ocupado = false; btnVerificar.disabled = !examenId() || !selAmbiente.value;
             dato.value = ''; dato.focus();
         }
     });
@@ -438,7 +500,8 @@
     function mostrarResultado(d) {
         const est = d.estudiante || null;
         const info = {
-            habilitado:           { clase: 'ok',     icono: '✓', titulo: 'HABILITADO',       sub: 'Puede ingresar al examen', sonido: sonidoOk },
+            habilitado:           { clase: 'ok',     icono: '✓', titulo: 'HABILITADO',
+                                    sub: d.ambiente_coincide === false ? 'Debe dirigirse al ambiente asignado' : 'Puede ingresar al examen', sonido: sonidoOk },
             no_habilitado:        { clase: 'no',     icono: '✕', titulo: 'NO HABILITADO',    sub: d.motivo ? 'Motivo: ' + d.motivo : d.mensaje, sonido: sonidoError },
             inactivo:             { clase: 'no',     icono: '✕', titulo: 'ESTUDIANTE NO ACTIVO', sub: d.motivo || d.mensaje, sonido: sonidoError },
             sin_foto:             { clase: 'no',     icono: '📷', titulo: 'SIN FOTO VÁLIDA',  sub: 'No puede ingresar: la foto es obligatoria', sonido: sonidoError },
@@ -447,6 +510,8 @@
                                     sub: 'Ingresó el ' + (d.fecha_hora_local || '—') + (d.ambiente ? ' · Aula ' + d.ambiente : ''), sonido: sonidoAlerta },
             no_corresponde:       { clase: 'alerta', icono: '⚠', titulo: 'EXAMEN NO CORRESPONDE',
                                     sub: 'Este examen no le corresponde al estudiante · intento n.º ' + (d.numero_intento || 1), sonido: sonidoNoCorresponde },
+            expulsado:            { clase: 'alerta', icono: '⛔', titulo: 'ESTUDIANTE EXPULSADO',
+                                    sub: 'Expulsado el ' + (d.fecha_hora_local || '—') + ' · no puede volver a ingresar', sonido: sonidoAlerta },
         }[d.tipo] || { clase: 'warn', icono: '!', titulo: 'RESULTADO', sub: d.mensaje, sonido: sonidoError };
 
         info.sonido();
@@ -490,7 +555,7 @@
         datos.appendChild(dato2('Cédula de identidad', est.carnet));
         datos.appendChild(dato2('Carrera', est.carrera, 'ancho'));
         datos.appendChild(dato2('Estado', est.estado));
-        datos.appendChild(dato2('Aula del examen', d.ambiente || aula.textContent));
+        datos.appendChild(dato2('Aula del examen', d.ambiente || '—'));
         fila.appendChild(datos);
         card.appendChild(fila);
 
@@ -501,6 +566,13 @@
             a.appendChild(document.createTextNode('Este nuevo intento fue a las ' + hora(d.hora_intento)
                 + ' y quedó registrado' + (d.incidencia_id ? ' como incidencia #' + d.incidencia_id : '')
                 + '. No se puede autorizar el ingreso otra vez: pide su carnet y avisa al docente.'));
+            card.appendChild(a);
+        }
+        if (d.tipo === 'expulsado') {
+            // RQ20: motivo de la expulsión y hora del nuevo intento (textContent, nada de HTML).
+            const a = el('div', 'v-aviso err');
+            a.appendChild(el('b', null, 'Motivo de la expulsión: '));
+            a.appendChild(document.createTextNode((d.motivo || '—').replace(/[.\s]+$/, '') + '. Este intento a las ' + hora(d.hora_intento) + ' quedó registrado.'));
             card.appendChild(a);
         }
         if (d.tipo === 'no_corresponde') {
@@ -528,6 +600,23 @@
         if (d.tipo === 'sin_foto') {
             card.appendChild(el('div', 'v-aviso err', d.mensaje + ' Pídele su carnet y avisa al docente; puede subir su foto desde el portal del estudiante.'));
         }
+        if (d.tipo === 'habilitado' && d.ambiente_asignado) {
+            const ambiente = d.ambiente_asignado;
+            const coincide = d.ambiente_coincide === true;
+            const estadoAmbiente = el('div', 'v-ambiente ' + (coincide ? 'ok' : 'err'));
+            if (coincide) {
+                estadoAmbiente.appendChild(el('small', null, 'AMBIENTE ASIGNADO · coincide con el ambiente de control'));
+            } else {
+                estadoAmbiente.appendChild(el('b', null, 'AMBIENTE INCORRECTO'));
+                estadoAmbiente.appendChild(el('small', null, 'El estudiante debe ir al ambiente asignado:'));
+            }
+            estadoAmbiente.appendChild(el('b', null, ambiente.nombre));
+            estadoAmbiente.appendChild(el('small', null, ambiente.ubicacion || 'Ubicación no registrada'));
+            if (!coincide) {
+                estadoAmbiente.appendChild(el('p', null, 'Si el cambio de ambiente está autorizado, regístralo con «Registrar situación excepcional» (arriba a la derecha).'));
+            }
+            card.appendChild(estadoAmbiente);
+        }
         if (d.tipo === 'inactivo') {
             card.appendChild(el('div', 'v-aviso err', d.mensaje + ' No se puede autorizar su ingreso.'));
         }
@@ -537,15 +626,16 @@
 
         // Acciones
         const acc = el('div', 'v-acciones');
-        // El botón siempre se muestra; solo se activa si el estudiante está habilitado (RQ9).
-        const puedeIngresar = d.tipo === 'habilitado';
-        const botonIngreso = el('button', 'v-btn ok', 'Autorizar ingreso');
-        botonIngreso.type = 'button';
-        botonIngreso.id = 'v-registrar';
-        botonIngreso.disabled = !puedeIngresar;
-        if (!puedeIngresar) botonIngreso.title = 'Este estudiante no puede ingresar';
-        botonIngreso.addEventListener('click', () => registrarIngreso(botonIngreso));
-        acc.appendChild(botonIngreso);
+        const puedeIngresar = d.tipo === 'habilitado' && d.ambiente_coincide === true;
+        if (d.tipo !== 'habilitado' || d.ambiente_coincide === true) {
+            const botonIngreso = el('button', 'v-btn ok', 'Registrar ingreso');
+            botonIngreso.type = 'button';
+            botonIngreso.id = 'v-registrar';
+            botonIngreso.disabled = !puedeIngresar;
+            if (!puedeIngresar) botonIngreso.title = 'Este estudiante no puede ingresar';
+            botonIngreso.addEventListener('click', () => registrarIngreso(botonIngreso));
+            acc.appendChild(botonIngreso);
+        }
         const mini = (texto, clase, fn) => { const b = el('button', 'btn-mini ' + clase, texto); b.type = 'button'; b.addEventListener('click', fn); return b; };
         acc.appendChild(mini('La foto no coincide', 'rojo', () => reportar('FOTO_NO_COINCIDE', 'La foto del sistema no coincide con la persona.')));
         acc.appendChild(mini('Sospecha de suplantación', 'rojo', () => reportar('SUPLANTACION_SOSPECHADA', 'El personal sospecha de suplantación.')));
@@ -624,8 +714,15 @@
         const textoBoton = boton.textContent;
         boton.disabled = true;
         boton.textContent = 'Registrando…';
+        selExamen.disabled = true;
+        selAmbiente.disabled = true;
 
-        const cuerpo = { id_estudiante: ultimo.estudiante.id, id_examen: examenId(), metodo: metodo };
+        const cuerpo = {
+            id_estudiante: ultimo.estudiante.id,
+            id_examen: examenId(),
+            metodo: metodo,
+            ambiente_control_id: selAmbiente.value,
+        };
         if (/^\d{9}$/.test(ultimo.codigo || '')) cuerpo.codigo_universitario = ultimo.codigo;
 
         try {
@@ -655,6 +752,8 @@
             mostrarErrorIngreso(boton, 'Error de conexión con el servidor. Revisa la red e inténtalo de nuevo.', true);
         } finally {
             guardando = false;
+            selExamen.disabled = false;
+            selAmbiente.disabled = !examenId() || selAmbiente.options.length <= 1;
         }
     }
 
@@ -716,6 +815,109 @@
             errSup.style.display = 'block';
         } finally {
             guardar.disabled = false;
+        }
+    });
+
+    // ---------- RQ21: situación excepcional (categoría, estudiante opcional, ambiente destino y detalle) ----------
+    // La hora y el usuario los pone el servidor: aquí NO se envía ninguno.
+    const sit = (id) => document.getElementById(id);
+    const dlgSit = sit('modal-situacion');
+    const formSit = sit('form-situacion');
+    const REQUIEREN_ESTUDIANTE = ['CAMBIO_AMBIENTE', 'ESTUDIANTE_NO_HABILITADO'];
+    let guardandoSit = false;
+    let avisoSitTimer = null;
+
+    function situacionValida() {
+        const cat = sit('sit-categoria').value;
+        if (!cat) return false;
+        if (sit('sit-detalle').value.trim().length < 5) return false;
+        if (cat === 'CAMBIO_AMBIENTE' && !sit('sit-destino').value) return false;
+        if (REQUIEREN_ESTUDIANTE.includes(cat) && !sit('sit-estudiante').value.trim()) return false;
+        return true;
+    }
+
+    /** Muestra u oculta el ambiente destino según la categoría y deja "Guardar" activo solo si el formulario está completo. */
+    function refrescarSituacion() {
+        const cat = sit('sit-categoria').value;
+        sit('sit-bloque-destino').style.display = cat === 'CAMBIO_AMBIENTE' ? '' : 'none';
+        sit('sit-estudiante-nota').textContent = REQUIEREN_ESTUDIANTE.includes(cat) ? 'obligatorio' : 'opcional';
+        sit('sit-cuenta').textContent = sit('sit-detalle').value.length + ' / 1000';
+        if (!guardandoSit) sit('sit-guardar').disabled = !situacionValida();
+    }
+
+    sit('v-situacion').addEventListener('click', () => {
+        if (!examenId()) { mostrarMensaje('warn', 'Selecciona el examen primero.'); return; }
+        formSit.reset();
+        sit('sit-examen').textContent = selExamen.options[selExamen.selectedIndex].textContent.replace(/\s+/g, ' ').trim();
+        // Si acaba de verificar a un estudiante, se propone como el estudiante de la situación (se puede borrar o cambiar).
+        sit('sit-estudiante').value = ultimo ? (ultimo.codigo || '') : '';
+        sit('sit-estudiante-nombre').textContent = ultimo
+            ? 'Último estudiante verificado: ' + (ultimo.estudiante.nombres + ' ' + ultimo.estudiante.apellidos).trim()
+            : 'Déjalo vacío si la situación no es de un estudiante en particular.';
+        sit('sit-error').style.display = 'none';
+        refrescarSituacion();
+        dlgSit.showModal();
+        sit('sit-categoria').focus();
+    });
+
+    ['sit-categoria', 'sit-destino', 'sit-detalle'].forEach((id) => sit(id).addEventListener('input', refrescarSituacion));
+    sit('sit-estudiante').addEventListener('input', () => {
+        sit('sit-estudiante').value = sit('sit-estudiante').value.replace(/\D/g, '');
+        // Si se cambia el código, deja de ser "el último verificado".
+        if (!ultimo || sit('sit-estudiante').value !== ultimo.codigo) sit('sit-estudiante-nombre').textContent = '';
+        refrescarSituacion();
+    });
+
+    function avisoSituacion(texto) {
+        const caja = sit('v-sit-aviso');
+        caja.textContent = texto;
+        caja.style.display = 'block';
+        clearTimeout(avisoSitTimer);
+        avisoSitTimer = setTimeout(() => { caja.style.display = 'none'; }, 10000);
+    }
+
+    formSit.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        if (guardandoSit || !situacionValida() || !examenId()) return;
+        guardandoSit = true;
+        const guardar = sit('sit-guardar');
+        guardar.disabled = true;
+        guardar.textContent = 'Guardando…';
+        sit('sit-error').style.display = 'none';
+
+        const cat = sit('sit-categoria').value;
+        const cuerpo = { examen_id: examenId(), categoria: cat, detalle: sit('sit-detalle').value.trim() };
+        const ref = sit('sit-estudiante').value.trim();
+        if (ref) {
+            if (ultimo && ref === ultimo.codigo) cuerpo.estudiante_id = ultimo.estudiante.id;
+            else cuerpo.estudiante_ref = ref;
+        }
+        if (cat === 'CAMBIO_AMBIENTE') cuerpo.ambiente_destino_id = Number(sit('sit-destino').value);
+
+        try {
+            const { res, json } = await enviar(URL_SITUACION, cuerpo);
+            if (res.ok && json.situacion) {
+                dlgSit.close();
+                sonidoOk();
+                const s = json.situacion;
+                avisoSituacion('Situación excepcional registrada: ' + s.categoria_etiqueta
+                    + (s.nombre ? ' · ' + s.nombre : '') + ' · ' + s.fecha_hora_local
+                    + '. Aparece en Control en vivo › Situaciones.');
+                agregarHistorial({ clase: 'warn', titulo: 'SITUACIÓN' }, s.nombre || s.categoria_etiqueta);
+            } else {
+                sonidoError();
+                sit('sit-error').textContent = json.errors ? Object.values(json.errors)[0][0]
+                    : (json.mensaje || json.message || 'No se pudo registrar la situación. Inténtalo de nuevo.');
+                sit('sit-error').style.display = 'block';
+            }
+        } catch (e) {
+            sonidoError();
+            sit('sit-error').textContent = 'Error de conexión con el servidor. Inténtalo de nuevo.';
+            sit('sit-error').style.display = 'block';
+        } finally {
+            guardandoSit = false;
+            guardar.textContent = 'Guardar situación';
+            refrescarSituacion();
         }
     });
 

@@ -33,6 +33,8 @@
         </div>
     </div>
 
+    @include('partials.flash')
+
     {{-- Resumen --}}
     <section class="stats three">
         <div class="stat">

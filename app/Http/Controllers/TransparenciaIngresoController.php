@@ -17,7 +17,7 @@ use Illuminate\Validation\Rule;
  * RQ8 · Transparencia de ingreso.
  *  - index():     vista de auditoría para el personal supervisor (solo lectura).
  *  - datos():     JSON que la vista consulta cada pocos segundos para actualizarse sin recargar.
- *  - registrar(): registra la autorización de ingreso (lo llama el botón "Autorizar ingreso" del control de ingreso).
+ *  - registrar(): registra la autorización de ingreso (lo llama el botón "Registrar ingreso" del control de ingreso).
  */
 class TransparenciaIngresoController extends Controller
 {

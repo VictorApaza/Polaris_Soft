@@ -9,8 +9,8 @@
 
 ## Cómo probar
 1. `php artisan migrate`.
-2. En Verificación, verifica a un estudiante habilitado y presiona **Autorizar ingreso** (queda registrado).
-3. Verifícalo otra vez: banner **amarillo** "EL ESTUDIANTE YA INGRESÓ" con fecha, hora y aula del primer ingreso, y el botón **Autorizar ingreso** desactivado.
+2. En Verificación, verifica a un estudiante habilitado en el ambiente asignado y presiona **Registrar ingreso** (queda registrado).
+3. Verifícalo otra vez: banner **amarillo** "EL ESTUDIANTE YA INGRESÓ" con fecha, hora y aula del primer ingreso, y el botón **Registrar ingreso** desactivado.
 4. En la base: `SELECT * FROM intento_ingreso ORDER BY id DESC;` → una fila con `motivo = 'INGRESO_DUPLICADO'` y `resultado = 'RECHAZADO'`.
-5. Doble clic rápido en **Autorizar ingreso** con otro estudiante habilitado: en `ingreso` queda UNA sola fila; la pantalla muestra el ingreso registrado con su hora y aula.
+5. Doble clic rápido en **Registrar ingreso** con otro estudiante habilitado: en `ingreso` queda UNA sola fila; la pantalla muestra el ingreso registrado con su hora y aula.
 6. `SELECT estudiante_id, examen_id, COUNT(*) FROM ingreso GROUP BY 1,2 HAVING COUNT(*) > 1;` → sin resultados.

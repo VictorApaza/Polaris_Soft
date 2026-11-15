@@ -16,6 +16,8 @@
         <a class="btn ghost" href="{{ route('transparencia.index') }}">‹ Transparencia de ingreso</a>
     </div>
 
+    @include('partials.flash')
+
     <section class="stats three">
         <div class="stat ok"><div><small>Ingresos correctos (24 h)</small><strong>{{ $totalExitosos24h }}</strong></div><span class="ic"><svg class="i"><use href="#i-check"/></svg></span></div>
         <div class="stat"><div><small>Intentos fallidos (24 h)</small><strong style="{{ $totalFallidos24h ? 'color:var(--danger)' : '' }}">{{ $totalFallidos24h }}</strong></div><span class="ic" style="background:var(--danger-bg);color:var(--danger)"><svg class="i"><use href="#i-alert"/></svg></span></div>

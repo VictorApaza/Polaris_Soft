@@ -17,7 +17,7 @@
     <section class="card" style="margin-top:20px">
         <div class="scroll">
             <table>
-                <thead><tr><th>Grupo</th><th>Materia</th><th>Docente a cargo</th><th style="text-align:right">Acciones</th></tr></thead>
+                <thead><tr><th>Grupo</th><th>Materia</th><th>Docente a cargo</th><th class="t-right">Acciones</th></tr></thead>
                 <tbody>
                 @forelse ($grupos as $g)
                     @php $url = route('grupos.update', $g); @endphp
