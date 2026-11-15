@@ -44,6 +44,10 @@ class AsignacionController extends Controller
             'grupo_id.required' => 'Selecciona un grupo.',
         ]);
 
+        if ((int) Grupo::whereKey($data['grupo_id'])->value('materia_id') !== (int) $data['materia_id']) {
+            return back()->withErrors(['grupo_id' => 'Selecciona un grupo de la materia elegida.'])->withInput();
+        }
+
         $data['estudiante_id'] = $estudiante->getKey();
 
         // Evita duplicar la misma materia para el mismo estudiante

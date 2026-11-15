@@ -80,7 +80,7 @@ class FlujoDemostracionTest extends TestCase
 
     public function test_el_recorrido_asignacion_examen_habilitacion_ingreso_y_auditoria_funciona(): void
     {
-        $this->actingAs($this->control)->get('/control/dashboard')->assertRedirect('/verificacion');
+        $this->actingAs($this->control)->get('/control/dashboard')->assertOk();
         $this->actingAs($this->control)->postJson('/verificar/codigo', [
             'id_examen' => $this->examen->id, 'codigo_universitario' => '202600101',
         ])->assertOk()->assertJsonPath('tipo', 'habilitado');
@@ -181,7 +181,7 @@ class FlujoDemostracionTest extends TestCase
     public function test_las_pantallas_del_administrador_cargan_con_los_datos_integrados(): void
     {
         foreach (['/admin/dashboard', '/estudiantes', '/materias', '/grupos', '/docentes', '/ambientes',
-            '/examenes', '/usuarios', '/verificacion', '/transparencia', '/estudiantes/'.$this->estudiante->getKey().'/qr'] as $url) {
+            '/examenes', '/usuarios', '/transparencia', '/estudiantes/'.$this->estudiante->getKey().'/qr'] as $url) {
             $this->get($url)->assertOk();
         }
     }

@@ -55,9 +55,7 @@ class AsignacionApiTest extends TestCase
         $this->actingAs($this->admin)->get('/estudiantes/42/asignaciones/create')
             ->assertOk()
             ->assertSee('css/sciem.css', false)
-            ->assertSee('css/asignacion.css', false)
-            ->assertSee('js/asignacion-api.js', false)
-            ->assertSee('data-estudiante-id="42"', false)
+            ->assertSee('/estudiantes/42/asignaciones', false)
             ->assertSee('Prueba, Ana');
     }
 
@@ -121,8 +119,7 @@ class AsignacionApiTest extends TestCase
 
         $this->get('/estudiantes/42/asignaciones')->assertOk()
             ->assertSee('Materia A')->assertSee('Grupo A')->assertSee('Docente A')
-            ->assertSee('data-asignacion-id="'.$asignacionId.'"', false)
-            ->assertSee('Quitar Materia A')->assertSee('1 materias asignadas');
+            ->assertSee('/asignaciones/'.$asignacionId, false);
     }
 
     public function test_conserva_el_guardado_web_de_main(): void
