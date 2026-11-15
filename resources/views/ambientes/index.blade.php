@@ -17,7 +17,7 @@
     <section class="card" style="margin-top:20px">
         <div class="scroll">
             <table>
-                <thead><tr><th>Ambiente / Aula</th><th>Ubicación</th><th>Capacidad</th><th style="text-align:right">Acciones</th></tr></thead>
+                <thead><tr><th>Ambiente / Aula</th><th>Ubicación</th><th>Capacidad</th><th class="t-right">Acciones</th></tr></thead>
                 <tbody>
                 @forelse ($ambientes as $ambiente)
                     @php $url = route('ambientes.update', $ambiente); @endphp

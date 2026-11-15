@@ -32,7 +32,7 @@
     <section class="card" style="margin-top:20px">
         <div class="scroll">
             <table>
-                <thead><tr><th>Nombre completo</th><th>Grado</th><th>CI</th><th>Grupos a cargo</th><th style="text-align:right">Acciones</th></tr></thead>
+                <thead><tr><th>Nombre completo</th><th>Grado</th><th>CI</th><th>Grupos a cargo</th><th class="t-right">Acciones</th></tr></thead>
                 <tbody>
                 @forelse ($docentes as $d)
                     @php

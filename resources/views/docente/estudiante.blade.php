@@ -16,6 +16,8 @@
         <a class="btn ghost" href="{{ route('buscador.index') }}">‹ Volver a la búsqueda</a>
     </div>
 
+    @include('partials.flash')
+
     <section class="card" style="margin-top:20px;padding:20px">
         <div class="mi-foto">
             <div class="img" style="width:140px">

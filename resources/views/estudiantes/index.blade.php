@@ -67,7 +67,7 @@
                     <tr>
                         <th>Código universitario</th><th>Nombre completo</th><th>CI / DNI</th>
                         <th>Facultad / Carrera</th><th>Correo institucional</th><th>Estado</th>
-                        <th style="text-align:right">Acciones</th>
+                        <th class="t-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>

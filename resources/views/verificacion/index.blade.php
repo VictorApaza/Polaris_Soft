@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Verificación de identidad')
+@section('title', 'Verificar ingreso')
 
 @section('content')
     @php
@@ -116,11 +116,11 @@
     </style>
 
     <div class="v-wrap">
-        <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Verificación de identidad</b></nav>
+        <nav class="crumb" aria-label="Ruta"><a href="{{ url('/dashboard') }}">Inicio</a> › <b>Verificar ingreso</b></nav>
 
         <div class="head">
             <div>
-                <h1>Verificación de identidad</h1>
+                <h1>Verificar ingreso</h1>
                 <p>Elige el examen, el método de verificación y valida al estudiante antes de dejarlo entrar.</p>
             </div>
             {{-- RQ21: abre el modal para registrar una situación excepcional (cambio de ambiente, problema de identificación…) --}}
@@ -263,6 +263,14 @@
     };
 
     const selExamen = document.getElementById('v-examen');
+    // Desde el Inicio se llega con ?examen=ID: queda elegido el examen y no hay que buscarlo.
+    window.addEventListener('load', () => {
+        const pedido = new URLSearchParams(location.search).get('examen');
+        if (pedido && [...selExamen.options].some((o) => o.value === pedido)) {
+            selExamen.value = pedido;
+            selExamen.dispatchEvent(new Event('change'));
+        }
+    });
     const selAmbiente = document.getElementById('v-ambiente');
     const form = document.getElementById('v-form');
     const dato = document.getElementById('v-dato');

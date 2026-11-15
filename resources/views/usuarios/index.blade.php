@@ -28,7 +28,7 @@
         <div class="scroll">
             <table>
                 <thead>
-                    <tr><th>Nombre</th><th>Correo institucional</th><th>Rol</th><th>Estado</th><th style="text-align:right">Acciones</th></tr>
+                    <tr><th>Nombre</th><th>Correo institucional</th><th>Rol</th><th>Estado</th><th class="t-right">Acciones</th></tr>
                 </thead>
                 <tbody>
                 @forelse ($usuarios as $u)

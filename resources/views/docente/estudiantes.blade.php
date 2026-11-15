@@ -11,6 +11,8 @@
         </div>
     </div>
 
+    @include('partials.flash')
+
     <form class="toolbar two" method="GET" action="{{ route('buscador.index') }}" style="margin-top:20px;padding:14px 16px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:var(--radius)">
         <label class="search">
             <svg class="i"><use href="#i-search"/></svg>
@@ -28,7 +30,7 @@
         <div class="scroll">
             <table>
                 <thead>
-                    <tr><th>Foto</th><th>Estudiante</th><th>Cédula</th><th>Carrera</th><th>Estado</th><th>Foto</th><th style="text-align:right">Detalle</th></tr>
+                    <tr><th>Foto</th><th>Estudiante</th><th>Cédula</th><th>Carrera</th><th>Estado</th><th>Foto</th><th class="t-right">Detalle</th></tr>
                 </thead>
                 <tbody>
                 @forelse ($estudiantes as $e)
@@ -39,7 +41,7 @@
                         <td>{{ $e->carrera ?: '—' }}</td>
                         <td><span class="badge {{ strtolower($e->estado) }}">{{ ucfirst(strtolower($e->estado)) }}</span></td>
                         <td><span class="badge {{ strtolower($e->foto_estado ?: 'sin_foto') }}">{{ $e->foto_estado_etiqueta }}</span></td>
-                        <td style="text-align:right"><a class="link-btn ok" href="{{ route('buscador.show', $e->id_estudiante) }}">Ver detalle</a></td>
+                        <td class="t-right"><a class="link-btn ok" href="{{ route('buscador.show', $e->id_estudiante) }}">Ver detalle</a></td>
                     </tr>
                 @empty
                     <tr><td colspan="7" class="empty">No se encontró ningún estudiante con esos datos.</td></tr>
