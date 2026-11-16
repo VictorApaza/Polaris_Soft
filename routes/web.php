@@ -17,6 +17,7 @@ use App\Http\Controllers\ExamenController;
 use App\Http\Controllers\ExpulsionController;
 use App\Http\Controllers\FotoEstudianteController;
 use App\Http\Controllers\GrupoController;
+use App\Http\Controllers\HistorialOperacionController;
 use App\Http\Controllers\HabilitacionController;
 use App\Http\Controllers\FotoCargaController;
 use App\Http\Controllers\IncidenciaController;
@@ -52,6 +53,8 @@ Route::get('/dashboard', [DashboardController::class, 'redirigir'])->middleware(
 // --- Administrador ---
 Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
+    Route::get('/historial-operaciones', [HistorialOperacionController::class, 'index'])->name('historial-operaciones.index');
+    Route::get('/historial-operaciones/exportar', [HistorialOperacionController::class, 'exportar'])->name('historial-operaciones.exportar');
 
     Route::resource('estudiantes', EstudianteController::class)->except(['create', 'show', 'edit']);
     Route::post('/estudiantes/{estudiante}/restablecer-password', [EstudianteController::class, 'restablecerPassword'])->name('estudiantes.password.restablecer');

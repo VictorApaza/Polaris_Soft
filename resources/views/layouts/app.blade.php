@@ -63,6 +63,8 @@
                     <svg class="i"><use href="#i-dashboard"/></svg> Reportes</a>
                 <a href="{{ route('transparencia.index') }}" @class(['active' => request()->routeIs('transparencia.*')])>
                     <svg class="i"><use href="#i-shield"/></svg> Transparencia</a>
+                <a href="{{ route('historial-operaciones.index') }}" @class(['active' => request()->routeIs('historial-operaciones.*')])>
+                    <svg class="i"><use href="#i-calendar"/></svg> Historial de operaciones</a>
             @endif
 
             @if ($es('docente'))
