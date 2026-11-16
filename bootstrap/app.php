@@ -15,6 +15,10 @@ $app = new Illuminate\Foundation\Application(
     $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__)
 );
 
+if (is_dir($app->basePath('public_html')) && ! is_dir($app->basePath('public'))) {
+    $app->usePublicPath($app->basePath('public_html'));
+}
+
 /*
 |--------------------------------------------------------------------------
 | Bind Important Interfaces

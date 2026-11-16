@@ -76,6 +76,19 @@ class TransparenciaIngresoController extends Controller
         $estudiante = Estudiante::findOrFail($data['estudiante_id']);
         $examen = Examen::findOrFail($data['examen_id']);
 
+        // Mismas reglas que /verificacion/ingreso: estudiante activo y con foto válida.
+        if (strtoupper((string) $estudiante->estado) !== 'ACTIVO') {
+            return response()->json([
+                'mensaje' => 'El estudiante no se encuentra activo para rendir el examen (estado: '.strtoupper((string) $estudiante->estado).').',
+            ], 422);
+        }
+
+        if (! $estudiante->foto_valida) {
+            return response()->json([
+                'mensaje' => 'El estudiante no tiene una foto válida registrada, por eso no se puede autorizar su ingreso.',
+            ], 422);
+        }
+
         // Solo se autoriza (y registra) el ingreso de estudiantes habilitados para ese examen.
         $habilitacion = Habilitacion::with('motivo')
             ->where('estudiante_id', $estudiante->getKey())

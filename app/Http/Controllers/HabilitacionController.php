@@ -19,10 +19,10 @@ class HabilitacionController extends Controller
     {
         $this->autorizarExamen($request, $examen);
 
-        // Los exámenes creados con el formulario nuevo se ligan a una asignatura (sin grupos);
-        // los anteriores se ligan a una materia con grupos.
-        $usaGrupos = ! $examen->asignatura_id;
-        $grupos = $usaGrupos ? Grupo::where('materia_id', $examen->materia_id)->orderBy('nombre')->get() : collect();
+        // La asignatura del examen se relaciona con la materia (por sigla) para filtrar por grupo.
+        $materia = $examen->materiaDeAsignacion();
+        $usaGrupos = $materia !== null;
+        $grupos = $usaGrupos ? Grupo::where('materia_id', $materia->id)->orderBy('nombre')->get() : collect();
         $grupoId = $usaGrupos ? ((int) $request->query('grupo_id') ?: null) : null;
 
         $ids = Habilitacion::candidatosIds($examen, $grupoId);
@@ -31,7 +31,7 @@ class HabilitacionController extends Controller
         $gruposPorEstudiante = [];
         if ($usaGrupos && $ids) {
             $gruposPorEstudiante = Asignacion::with('grupo')
-                ->where('materia_id', $examen->materia_id)
+                ->where('materia_id', $materia->id)
                 ->whereIn('estudiante_id', $ids)
                 ->get()
                 ->mapWithKeys(fn ($a) => [$a->estudiante_id => $a->grupo?->nombre])

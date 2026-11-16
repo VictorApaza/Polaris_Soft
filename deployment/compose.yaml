@@ -1,0 +1,43 @@
+name: polaris-webtis
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    env_file: ../.env
+    ports:
+      - "127.0.0.1:8018:80"
+    volumes:
+      - ..:/var/www/app
+      - vendor:/var/www/app/vendor
+    depends_on:
+      db:
+        condition: service_healthy
+      mail:
+        condition: service_started
+
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_DATABASE:?Define DB_DATABASE}
+      MARIADB_USER: ${DB_USERNAME:?Define DB_USERNAME}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD}
+    volumes:
+      - database:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  mail:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "127.0.0.1:8025:8025"
+
+volumes:
+  vendor:
+  database:
+
