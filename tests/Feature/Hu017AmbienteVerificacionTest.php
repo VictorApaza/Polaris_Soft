@@ -60,6 +60,13 @@ class Hu017AmbienteVerificacionTest extends TestCase
             'foto_path' => 'fotos_estudiantes/hu017.jpg',
             'foto_estado' => 'APROBADA',
         ])->save();
+        // Habilitacion::habilitar() solo habilita a quien está inscrito en la asignatura del examen.
+        \Illuminate\Support\Facades\DB::table('estudiante_asignatura')->insert([
+            'id_estudiante' => $this->estudiante->id_estudiante,
+            'id_asignatura' => $asignatura->id_asignatura,
+            'gestion' => '2026-II',
+            'estado' => 'ACTIVO',
+        ]);
         Habilitacion::habilitar($this->examen, [$this->estudiante->id_estudiante]);
     }
 
