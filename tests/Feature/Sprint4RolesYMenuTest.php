@@ -9,7 +9,7 @@ use Tests\TestCase;
 /**
  * Permisos por rol y paneles de Inicio:
  *  - solo el administrador gestiona cuentas y cambia roles;
- *  - el administrador no verifica ingresos (lo hacen control y docente);
+ *  - solo el personal de control verifica ingresos (ni docente ni administrador);
  *  - cada rol ve su panel y su menú.
  */
 class Sprint4RolesYMenuTest extends TestCase
@@ -39,17 +39,16 @@ class Sprint4RolesYMenuTest extends TestCase
         $this->actingAs($admin)->get('/usuarios')->assertOk();
     }
 
-    public function test_el_administrador_no_verifica_ingresos(): void
+    public function test_solo_el_personal_de_control_verifica_ingresos(): void
     {
-        $admin = $this->usuario('administrador');
+        foreach (['administrador', 'docente'] as $rol) {
+            $u = $this->usuario($rol);
+            $this->actingAs($u)->get('/verificacion')->assertForbidden();
+            $this->actingAs($u)->postJson('/verificacion/verificar', [])->assertForbidden();
+            $this->actingAs($u)->postJson('/verificacion/ingreso', [])->assertForbidden();
+            $u->delete();
+        }
 
-        $this->actingAs($admin)->get('/verificacion')->assertForbidden();
-        $this->actingAs($admin)->postJson('/verificacion/verificar', [])->assertForbidden();
-        $this->actingAs($admin)->postJson('/verificacion/ingreso', [])->assertForbidden();
-    }
-
-    public function test_control_y_docente_si_acceden_a_verificar_ingreso(): void
-    {
         $this->actingAs($this->usuario('control'))->get('/verificacion')->assertOk();
     }
 
@@ -62,7 +61,7 @@ class Sprint4RolesYMenuTest extends TestCase
     public function test_panel_del_docente_y_del_personal_de_control(): void
     {
         $this->actingAs($this->usuario('docente'))->get('/docente/dashboard')
-            ->assertOk()->assertSee('Panel del docente')->assertSee('Habilitar estudiantes')->assertDontSee('Cuentas y roles');
+            ->assertOk()->assertSee('Panel del docente')->assertSee('Habilitar estudiantes')->assertDontSee('Cuentas y roles')->assertDontSee('Verificar ingreso');
 
         $this->actingAs($this->usuario('control'))->get('/control/dashboard')
             ->assertOk()->assertSee('Panel del personal de control')->assertSee('Verificar ingreso')->assertDontSee('Habilitar estudiantes');

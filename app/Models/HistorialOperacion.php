@@ -15,6 +15,7 @@ class HistorialOperacion extends Model
         'usuario_id',
         'usuario_nombre',
         'usuario_rol',
+        'ip',
         'accion',
         'detalle',
         'examen_id',

@@ -108,6 +108,7 @@ class HistorialOperacionService
                 'usuario_id' => $usuario->getKey(),
                 'usuario_nombre' => Str::limit((string) $usuario->name, 150, ''),
                 'usuario_rol' => (string) $usuario->rol,
+                'ip' => Str::limit((string) $request->ip(), 45, ''),
                 'accion' => $rechazoEsperado ? 'Intento rechazado' : ($tipoRespuesta === 'habilitado' ? 'Verificación de ingreso' : $this->accion($ruta, $request)),
                 'detalle' => $this->detalle($request, $ruta, $examenNombre, $mensaje, $tipoRespuesta),
                 'examen_id' => $examenId,

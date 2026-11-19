@@ -57,9 +57,7 @@
                     <svg class="i"><use href="#i-building"/></svg> Ambientes</a>
 
                 <h3>Seguimiento</h3>
-                <a href="{{ route('en-vivo.index') }}" @class(['active' => request()->routeIs('en-vivo.*')])>
-                    <svg class="i"><use href="#i-eye"/></svg> Control en vivo</a>
-                <a href="{{ route('reportes.index') }}" @class(['active' => request()->routeIs('reportes.*')])>
+                <a href="{{ route('reportes.index') }}" @class(['active' => request()->routeIs('reportes.*', 'en-vivo.*')])>
                     <svg class="i"><use href="#i-dashboard"/></svg> Reportes</a>
                 <a href="{{ route('transparencia.index') }}" @class(['active' => request()->routeIs('transparencia.*')])>
                     <svg class="i"><use href="#i-shield"/></svg> Transparencia</a>
@@ -74,14 +72,8 @@
                 <a href="{{ route('docente.examenes') }}" @class(['active' => request()->routeIs('docente.examenes', 'habilitaciones.*', 'examenes.fotos')])>
                     <svg class="i"><use href="#i-exams"/></svg> Habilitar estudiantes</a>
 
-                <h3>El día del examen</h3>
-                <a href="{{ route('verificacion.index') }}" @class(['active' => request()->routeIs('verificacion.*')])>
-                    <svg class="i"><use href="#i-check"/></svg> Verificar ingreso</a>
-                <a href="{{ route('en-vivo.index') }}" @class(['active' => request()->routeIs('en-vivo.*')])>
-                    <svg class="i"><use href="#i-eye"/></svg> Control en vivo</a>
-
                 <h3>Seguimiento</h3>
-                <a href="{{ route('reportes.index') }}" @class(['active' => request()->routeIs('reportes.*')])>
+                <a href="{{ route('reportes.index') }}" @class(['active' => request()->routeIs('reportes.*', 'en-vivo.*')])>
                     <svg class="i"><use href="#i-dashboard"/></svg> Reportes</a>
                 <a href="{{ route('transparencia.index') }}" @class(['active' => request()->routeIs('transparencia.*')])>
                     <svg class="i"><use href="#i-shield"/></svg> Transparencia</a>

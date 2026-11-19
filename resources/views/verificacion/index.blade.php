@@ -504,6 +504,7 @@
                                     sub: d.ambiente_coincide === false ? 'Debe dirigirse al ambiente asignado' : 'Puede ingresar al examen', sonido: sonidoOk },
             no_habilitado:        { clase: 'no',     icono: '✕', titulo: 'NO HABILITADO',    sub: d.motivo ? 'Motivo: ' + d.motivo : d.mensaje, sonido: sonidoError },
             inactivo:             { clase: 'no',     icono: '✕', titulo: 'ESTUDIANTE NO ACTIVO', sub: d.motivo || d.mensaje, sonido: sonidoError },
+            examen_pasado:        { clase: 'no',     icono: '⏰', titulo: 'EXAMEN TERMINADO',  sub: d.mensaje, sonido: sonidoError },
             sin_foto:             { clase: 'no',     icono: '📷', titulo: 'SIN FOTO VÁLIDA',  sub: 'No puede ingresar: la foto es obligatoria', sonido: sonidoError },
             codigo_no_registrado: { clase: 'no',     icono: '?', titulo: 'NO REGISTRADO',    sub: d.mensaje, sonido: sonidoError },
             ya_ingreso:           { clase: 'warn',   icono: '!', titulo: 'EL ESTUDIANTE YA INGRESÓ',

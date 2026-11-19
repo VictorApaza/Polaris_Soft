@@ -45,7 +45,12 @@
                                 0
                             @endif
                         </td>
-                        <td class="t-right"><a class="link-btn ok" href="{{ route('reportes.show', $x) }}">Ver reporte</a></td>
+                        <td class="t-right">
+                            <div class="fila-acciones">
+                                <a class="btn-mini" href="{{ route('en-vivo.examen', $x) }}">En vivo</a>
+                                <a class="link-btn ok" href="{{ route('reportes.show', $x) }}">Ver reporte</a>
+                            </div>
+                        </td>
                     </tr>
                 @empty
                     <tr><td colspan="9" class="empty">Todavía no hay exámenes registrados.</td></tr>
