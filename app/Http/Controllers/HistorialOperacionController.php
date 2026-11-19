@@ -36,7 +36,7 @@ class HistorialOperacionController extends Controller
         return response()->streamDownload(function () use ($consulta, $zona) {
             $salida = fopen('php://output', 'w');
             fwrite($salida, "\xEF\xBB\xBF");
-            fputcsv($salida, ['Fecha y hora', 'Usuario', 'Rol', 'Acción', 'Detalle', 'Examen', 'Registros', 'Estado', 'Error'], ';');
+            fputcsv($salida, ['Fecha y hora', 'Usuario', 'Rol', 'IP', 'Acción', 'Detalle', 'Examen', 'Registros', 'Estado', 'Error'], ';');
 
             $consulta->chunk(500, function ($registros) use ($salida, $zona) {
                 foreach ($registros as $registro) {
@@ -44,6 +44,7 @@ class HistorialOperacionController extends Controller
                         $registro->fecha_hora->copy()->timezone($zona)->format('d/m/Y H:i:s'),
                         $this->valorCsv($registro->usuario_nombre),
                         $this->valorCsv($registro->usuario_rol),
+                        $this->valorCsv($registro->ip),
                         $this->valorCsv($registro->accion),
                         $this->valorCsv($registro->detalle),
                         $this->valorCsv($registro->examen_nombre),

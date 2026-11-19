@@ -41,14 +41,9 @@
             <div><b>Importar mis estudiantes</b><small>Con la plantilla CSV o un Excel</small></div>
             <svg class="i go"><use href="#i-arrow"/></svg>
         </a>
-        <a href="{{ route('verificacion.index') }}">
-            <span class="ic"><svg class="i"><use href="#i-check"/></svg></span>
-            <div><b>Verificar ingreso</b><small>Por código, cédula o QR</small></div>
-            <svg class="i go"><use href="#i-arrow"/></svg>
-        </a>
         <a href="{{ route('en-vivo.index') }}">
             <span class="ic soft"><svg class="i"><use href="#i-eye"/></svg></span>
-            <div><b>Control en vivo</b><small>Quién ya entró y quién falta</small></div>
+            <div><b>Seguimiento en vivo</b><small>Quién ya entró y quién falta (parte de Reportes)</small></div>
             <svg class="i go"><use href="#i-arrow"/></svg>
         </a>
         <a href="{{ route('fotos.cargar') }}">

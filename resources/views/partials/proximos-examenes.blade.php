@@ -22,7 +22,6 @@
                         <div class="fila-acciones">
                             @if ($rolActual === 'docente')
                                 <a class="btn-mini" href="{{ route('habilitaciones.index', $e) }}">Habilitar</a>
-                                <a class="btn-mini" href="{{ route('verificacion.index', ['examen' => $e->id]) }}">Verificar</a>
                                 <a class="btn-mini" href="{{ route('en-vivo.examen', $e) }}">En vivo</a>
                                 <a class="btn-mini" href="{{ route('reportes.show', $e) }}">Reporte</a>
                             @elseif ($rolActual === 'control')

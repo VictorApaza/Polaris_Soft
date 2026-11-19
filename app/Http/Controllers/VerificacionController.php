@@ -35,7 +35,9 @@ class VerificacionController extends Controller
             ->where('estado', '!=', 'finalizado')
             ->orderBy('fecha')
             ->orderBy('hora_inicio')
-            ->get();
+            ->get()
+            ->reject(fn ($e) => $e->ya_paso)   // un examen que ya terminó no se puede verificar
+            ->values();
         $ambientes = Ambiente::orderBy('nombre')->get();
 
         return view('verificacion.index', compact('examenes', 'ambientes'));
@@ -103,6 +105,11 @@ class VerificacionController extends Controller
         $examen = Examen::findOrFail($data['id_examen']);
         if (! $examen->permiteA($request->user())) {
             return response()->json(['message' => 'Ese examen no es de una de tus materias.'], 403);
+        }
+        if ($examen->ya_paso) {
+            $mensaje = 'Este examen ya terminó ('.$examen->fin->format('d/m/Y H:i').'): no se puede verificar ingresos.';
+
+            return response()->json(['tipo' => 'examen_pasado', 'mensaje' => $mensaje, 'motivo' => $mensaje], 422);
         }
         $ambienteAsignado = $this->ambienteAsignadoDe($examen);
         $ambienteControl = $request->filled('ambiente_control_id')
@@ -308,6 +315,11 @@ class VerificacionController extends Controller
 
         if (! $examen->permiteA($request->user())) {
             return response()->json(['mensaje' => 'Ese examen no es de una de tus materias.'], 403);
+        }
+        if ($examen->ya_paso) {
+            $mensaje = 'Este examen ya terminó: no se puede autorizar ingresos.';
+
+            return response()->json(['tipo' => 'examen_pasado', 'mensaje' => $mensaje, 'motivo' => $mensaje], 422);
         }
 
         $ambienteAsignado = $this->ambienteAsignadoDe($examen);

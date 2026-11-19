@@ -19,6 +19,7 @@
             <p>{{ $examen->carrera }} · {{ $examen->inicio->format('d/m/Y') }} {{ $examen->hora }} · Aula {{ $examen->ambiente }}</p>
         </div>
         <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn ghost" href="{{ route('en-vivo.examen', $examen) }}">Control en vivo</a>
             <a class="btn ghost" href="{{ route('habilitaciones.index', $examen) }}">Habilitados</a>
             <a class="btn ghost" href="{{ route('examenes.fotos', $examen) }}">Fotos</a>
             <button class="btn" type="button" onclick="window.print()">Imprimir</button>

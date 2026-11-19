@@ -74,19 +74,20 @@
     <section class="card" style="margin-top:16px">
         <div class="scroll">
             <table>
-                <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th><th>Examen</th><th>Reg.</th></tr></thead>
+                <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>IP</th><th>Acción</th><th>Detalle</th><th>Examen</th><th>Reg.</th></tr></thead>
                 <tbody>
                 @forelse ($registros as $registro)
                     <tr class="{{ $registro->estado === 'error' ? 'alerta-fila' : '' }}">
                         <td class="num strong">{{ $registro->fecha_hora->copy()->timezone(config('sciem.zona_horaria'))->format('d/m H:i:s') }}</td>
                         <td>{{ $registro->usuario_nombre }}<span class="sub">{{ \App\Models\User::ROLES[$registro->usuario_rol] ?? ucfirst($registro->usuario_rol) }}</span></td>
+                        <td class="num">{{ $registro->ip ?: '—' }}</td>
                         <td><span class="badge {{ $registro->estado === 'error' ? 'error' : 'habilitado' }}">{{ $registro->accion }}</span></td>
                         <td class="historial-detalle" @if ($registro->error) title="{{ $registro->error }}" @endif>{{ $registro->detalle }}</td>
                         <td class="historial-examen">{{ $registro->examen_nombre ?: '—' }}</td>
                         <td class="num">{{ $registro->registros_afectados }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="empty">Todavía no hay operaciones registradas.</td></tr>
+                    <tr><td colspan="7" class="empty">Todavía no hay operaciones registradas.</td></tr>
                 @endforelse
                 </tbody>
             </table>

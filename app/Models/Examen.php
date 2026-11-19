@@ -58,6 +58,12 @@ class Examen extends Model
     }
 
     /** Hora en formato HH:MM (la columna time devuelve HH:MM:SS). */
+    /** ¿Ya terminó el examen? (pasó su hora de fin; en la zona horaria del sistema) */
+    public function getYaPasoAttribute(): bool
+    {
+        return now()->greaterThan($this->fin);
+    }
+
     public function getHoraAttribute(): string
     {
         return substr((string) $this->hora_inicio, 0, 5);
