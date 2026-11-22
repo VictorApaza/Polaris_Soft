@@ -41,6 +41,33 @@
         <div class="stat"><div><small>Incidencias abiertas</small><strong style="{{ $abiertas ? 'color:var(--danger)' : '' }}">{{ $abiertas }}</strong></div><span class="ic" style="{{ $abiertas ? 'background:var(--danger-bg);color:var(--danger)' : '' }}"><svg class="i"><use href="#i-alert"/></svg></span></div>
     </section>
 
+    {{-- ================= REPORTES PARA DESCARGAR (Sprint 5: RQ16-RQ19, PDF y Excel) ================= --}}
+    <section class="seccion no-print">
+        <h2>Reportes para descargar en PDF o Excel</h2>
+        <div class="quick" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+            <a href="{{ route('reportes.asistencia', $examen) }}">
+                <span class="ic"><svg class="i"><use href="#i-check"/></svg></span>
+                <div><b>Asistencia</b><small>Quiénes ingresaron, a qué hora y cómo</small></div>
+                <svg class="i sm go"><use href="#i-arrow"/></svg>
+            </a>
+            <a href="{{ route('reportes.ausentes', $examen) }}">
+                <span class="ic soft"><svg class="i"><use href="#i-calendar"/></svg></span>
+                <div><b>Estudiantes ausentes</b><small>Habilitados que no ingresaron</small></div>
+                <svg class="i sm go"><use href="#i-arrow"/></svg>
+            </a>
+            <a href="{{ route('reportes.horarios', $examen) }}">
+                <span class="ic soft"><svg class="i"><use href="#i-dashboard"/></svg></span>
+                <div><b>Horarios de ingreso</b><small>Franjas, hora pico y registrados</small></div>
+                <svg class="i sm go"><use href="#i-arrow"/></svg>
+            </a>
+            <a href="{{ route('reportes.intentos', $examen) }}">
+                <span class="ic soft"><svg class="i"><use href="#i-alert"/></svg></span>
+                <div><b>Intentos indebidos</b><small>Quiénes intentaron entrar a otro examen</small></div>
+                <svg class="i sm go"><use href="#i-arrow"/></svg>
+            </a>
+        </div>
+    </section>
+
     {{-- ================= REGISTRAR UNA INCIDENCIA (el docente durante el examen) ================= --}}
     <section class="seccion no-print">
         <h2>Registrar una incidencia o falta durante el examen</h2>

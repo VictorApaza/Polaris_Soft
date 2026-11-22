@@ -25,6 +25,8 @@ use App\Http\Controllers\IntentoIngresoController;
 use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\ReporteExamenController;
+use App\Http\Controllers\RespaldoController;
 use App\Http\Controllers\SituacionExcepcionalController;
 use App\Http\Controllers\TransparenciaIngresoController;
 use App\Http\Controllers\UsuarioController;
@@ -55,6 +57,16 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
     Route::get('/historial-operaciones', [HistorialOperacionController::class, 'index'])->name('historial-operaciones.index');
     Route::get('/historial-operaciones/exportar', [HistorialOperacionController::class, 'exportar'])->name('historial-operaciones.exportar');
+
+    // Respaldos de la información (RQ26): crear, descargar, verificar, restaurar y eliminar.
+    Route::prefix('respaldos')->name('respaldos.')->group(function () {
+        Route::get('/', [RespaldoController::class, 'index'])->name('index');
+        Route::post('/', [RespaldoController::class, 'store'])->name('store');
+        Route::get('/{nombre}/descargar', [RespaldoController::class, 'descargar'])->name('descargar');
+        Route::post('/{nombre}/verificar', [RespaldoController::class, 'verificar'])->name('verificar');
+        Route::post('/{nombre}/restaurar', [RespaldoController::class, 'restaurar'])->name('restaurar');
+        Route::delete('/{nombre}', [RespaldoController::class, 'destroy'])->name('destroy');
+    });
 
     Route::resource('estudiantes', EstudianteController::class)->except(['create', 'show', 'edit']);
     Route::post('/estudiantes/{estudiante}/restablecer-password', [EstudianteController::class, 'restablecerPassword'])->name('estudiantes.password.restablecer');
@@ -199,6 +211,11 @@ Route::middleware(['auth', 'role:administrador,docente'])->group(function () {
 
     Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
     Route::get('/reportes/examen/{examen}', [ReporteController::class, 'show'])->name('reportes.show');
+    // Reportes exportables en PDF / Excel (RQ16 asistencia, RQ17 ausentes, RQ18 horarios, RQ19 intentos indebidos).
+    Route::get('/reportes/examen/{examen}/asistencia', [ReporteExamenController::class, 'asistencia'])->name('reportes.asistencia');
+    Route::get('/reportes/examen/{examen}/ausentes', [ReporteExamenController::class, 'ausentes'])->name('reportes.ausentes');
+    Route::get('/reportes/examen/{examen}/horarios', [ReporteExamenController::class, 'horarios'])->name('reportes.horarios');
+    Route::get('/reportes/examen/{examen}/intentos-indebidos', [ReporteExamenController::class, 'intentos'])->name('reportes.intentos');
     Route::post('/incidencias/{incidencia}/revisar', [IncidenciaController::class, 'revisar'])->name('incidencias.revisar');
 
     Route::get('/buscar-estudiantes', [BuscadorEstudiantesController::class, 'index'])->name('buscador.index');
