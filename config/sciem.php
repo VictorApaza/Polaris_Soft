@@ -31,4 +31,13 @@ return [
     'foto_contraste_min' => (float) env('SCIEM_FOTO_CONTRASTE_MIN', 25),
     'foto_piel_min' => (float) env('SCIEM_FOTO_PIEL_MIN', 0.08),
     'foto_lentes_ratio' => (float) env('SCIEM_FOTO_LENTES_RATIO', 0.5),
+
+    /*
+    | Respaldos (RQ26): hora del respaldo automático diario (HH:MM), cuántos días se conservan los automáticos
+    | (0 = nunca borrar), si se incluyen las fotos/evidencias y qué carpetas de storage/app se respaldan.
+    */
+    'respaldo_hora' => env('SCIEM_RESPALDO_HORA', '02:00'),
+    'respaldo_conservar_dias' => (int) env('SCIEM_RESPALDO_CONSERVAR_DIAS', 14),
+    'respaldo_con_archivos' => filter_var(env('SCIEM_RESPALDO_CON_ARCHIVOS', true), FILTER_VALIDATE_BOOLEAN),
+    'respaldo_carpetas' => ['fotos_estudiantes', 'incidencias'],
 ];

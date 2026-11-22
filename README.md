@@ -33,6 +33,7 @@ Usuarios de prueba (contraseña `password123`):
 - El catálogo de ambientes y capacidades se administra desde `ambientes/index` y alimenta el formulario de registro de exámenes.
 - El historial de operaciones está disponible para administradores en `historial-operaciones`; registra cambios, intentos rechazados y errores, y permite filtrar o exportar CSV en modo de solo lectura.
 - Rutas en `routes/web.php`; módulos de gestión protegidos con `role:administrador`.
+- Sprint 5: reportes de asistencia, ausentes, horarios e intentos indebidos en PDF/Excel (`docs/Sprint5_RQ16_RQ17_RQ18_RQ19.md`) y respaldos de la información en `/respaldos` (`docs/Sprint5_RQ26.md`; requiere el cron de Laravel para el respaldo diario).
 
 ---
 
