@@ -31,6 +31,11 @@ return [
     'foto_contraste_min' => (float) env('SCIEM_FOTO_CONTRASTE_MIN', 25),
     'foto_piel_min' => (float) env('SCIEM_FOTO_PIEL_MIN', 0.08),
     'foto_lentes_ratio' => (float) env('SCIEM_FOTO_LENTES_RATIO', 0.5),
+    /* Caricaturas / dibujos: pocas tonalidades distintas y zonas planas. Sube el máximo si rechaza fotos reales. */
+    'foto_caricatura_colores_max' => (int) env('SCIEM_FOTO_CARICATURA_COLORES_MAX', 30),
+    'foto_caricatura_plano_min' => (float) env('SCIEM_FOTO_CARICATURA_PLANO_MIN', 0.5),
+    /* Misma foto en dos estudiantes: bits de diferencia (de 64) hasta los que se considera la misma foto. 0 = solo copia exacta. */
+    'foto_duplicada_distancia' => (int) env('SCIEM_FOTO_DUPLICADA_DISTANCIA', 4),
 
     /*
     | Respaldos (RQ26): hora del respaldo automático diario (HH:MM), cuántos días se conservan los automáticos

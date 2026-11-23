@@ -193,6 +193,14 @@ class EstudiantePortalController extends Controller
             return back()->with('error', $revision['motivo']);
         }
 
+        // La misma foto no puede usarse para dos estudiantes distintos.
+        $contenido = (string) file_get_contents($archivo->getRealPath());
+        $duplicadas = app(\App\Services\FotoDuplicadaService::class);
+        if ($duplicadas->duplicadaDe($contenido, (int) $estudiante->getKey())) {
+            return back()->with('error', 'Esa foto ya está registrada en el sistema para otro estudiante. Sube tu propia foto.');
+        }
+        $huellas = $duplicadas->calcular($contenido);
+
         $nombre = $estudiante->getKey().'_'.time().'.'.$archivo->extension();
         $ruta = $archivo->storeAs('fotos_estudiantes', $nombre, 'local');
 
@@ -202,6 +210,8 @@ class EstudiantePortalController extends Controller
 
         $estudiante->forceFill([
             'foto_path' => $ruta,
+            'foto_hash' => $huellas['hash'],
+            'foto_huella' => $huellas['huella'],
             'foto_estado' => 'PENDIENTE',
             'foto_observacion' => null,
             'foto_subida_at' => now(),

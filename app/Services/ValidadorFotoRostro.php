@@ -7,7 +7,8 @@ namespace App\Services;
  * Usa solo la extensión GD de PHP (sin servicios externos) y rechaza lo que se nota a simple vista:
  *   - borrosa (poca nitidez), muy oscura, muy clara o sin contraste;
  *   - imagen que no tiene forma de retrato / no se ve un rostro (casi no hay tono de piel en el centro);
- *   - lentes oscuros (franja de los ojos mucho más oscura que la frente y las mejillas).
+ *   - lentes oscuros (franja de los ojos mucho más oscura que la frente y las mejillas);
+ *   - caricaturas o dibujos (muy pocas tonalidades y zonas planas en el centro). Los lentes normales (transparentes) SÍ se permiten.
  * Los umbrales se ajustan en config/sciem.php (variables SCIEM_FOTO_* del .env).
  *
  * Importante: es una revisión por reglas, no reconocimiento facial. Los lentes transparentes o un rostro
@@ -107,6 +108,14 @@ class ValidadorFotoRostro
             return $this->rechazo('La foto no es válida: no se ve claramente tu rostro. Debe ser una foto de frente, con la cara centrada y descubierta.', $metricas);
         }
 
+        // Caricatura o dibujo: pocas tonalidades distintas y casi sin textura en la zona del rostro.
+        [$tonos, $plano] = $this->medirCaricatura($copia, $ancho, $alto);
+        $metricas['tonos_90'] = $tonos;
+        $metricas['zona_plana'] = round($plano, 2);
+        if ($tonos <= (int) config('sciem.foto_caricatura_colores_max', 30) && $plano >= (float) config('sciem.foto_caricatura_plano_min', 0.5)) {
+            return $this->rechazo('La foto no es válida: parece una caricatura o un dibujo. Sube una fotografía real de tu rostro.', $metricas);
+        }
+
         // Lentes oscuros: la franja de los ojos es mucho más oscura que la frente y las mejillas.
         $ojos = $this->promedio($gris, $ancho, $alto, 0.22, 0.78, 0.28, 0.45);
         $frente = $this->promedio($gris, $ancho, $alto, 0.30, 0.70, 0.08, 0.25);
@@ -118,6 +127,61 @@ class ValidadorFotoRostro
         }
 
         return ['ok' => true, 'motivo' => null, 'metricas' => $metricas];
+    }
+
+    /**
+     * @return array{0:int,1:float} [cuántas tonalidades (16 niveles por canal) cubren el 90 % de la zona central,
+     *                               proporción de píxeles "planos" (casi iguales a su vecino)]
+     */
+    private function medirCaricatura($copia, int $ancho, int $alto): array
+    {
+        $x1 = (int) ($ancho * 0.2);
+        $x2 = (int) ($ancho * 0.8);
+        $y1 = (int) ($alto * 0.1);
+        $y2 = (int) ($alto * 0.9);
+        $tonos = [];
+        $planos = 0;
+        $total = 0;
+
+        for ($y = $y1; $y < $y2 - 1; $y++) {
+            for ($x = $x1; $x < $x2 - 1; $x++) {
+                $c = imagecolorat($copia, $x, $y);
+                $d = imagecolorat($copia, $x + 1, $y);
+                $e = imagecolorat($copia, $x, $y + 1);
+                $r = ($c >> 16) & 0xFF;
+                $g = ($c >> 8) & 0xFF;
+                $b = $c & 0xFF;
+
+                $clave = (($r >> 4) << 8) | (($g >> 4) << 4) | ($b >> 4);
+                $tonos[$clave] = ($tonos[$clave] ?? 0) + 1;
+
+                $dif = max(
+                    abs($r - (($d >> 16) & 0xFF)), abs($g - (($d >> 8) & 0xFF)), abs($b - ($d & 0xFF)),
+                    abs($r - (($e >> 16) & 0xFF)), abs($g - (($e >> 8) & 0xFF)), abs($b - ($e & 0xFF))
+                );
+                if ($dif <= 3) {
+                    $planos++;
+                }
+                $total++;
+            }
+        }
+
+        if ($total === 0) {
+            return [999, 0.0];
+        }
+
+        arsort($tonos);
+        $acumulado = 0;
+        $necesarios = 0;
+        foreach ($tonos as $cuenta) {
+            $acumulado += $cuenta;
+            $necesarios++;
+            if ($acumulado >= $total * 0.9) {
+                break;
+            }
+        }
+
+        return [$necesarios, $planos / $total];
     }
 
     /** Promedio de una matriz [y][x] dentro de un rectángulo dado en fracciones del ancho y alto. */

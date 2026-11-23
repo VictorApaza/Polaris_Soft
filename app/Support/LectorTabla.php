@@ -25,6 +25,8 @@ class LectorTabla
             return null;
         }
 
+        $matriz = self::separarSiVieneEnUnaColumna($matriz);
+
         $encabezado = array_map(fn ($c) => self::normalizarColumna((string) $c), array_shift($matriz));
         $filas = [];
 
@@ -106,7 +108,7 @@ class LectorTabla
             }
         }
 
-        $hoja = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $hoja = $zip->getFromName(self::rutaPrimeraHoja($zip));
         $zip->close();
         if ($hoja === false) {
             return null;
@@ -127,13 +129,9 @@ class LectorTabla
                 if ($tipo === 's') {
                     $valor = $compartidas[(int) $celda->v] ?? '';
                 } elseif ($tipo === 'inlineStr') {
-                    $valor = (string) $celda->is->t;
+                    $valor = isset($celda->is->t) ? (string) $celda->is->t : implode('', array_map(fn ($r) => (string) $r->t, iterator_to_array($celda->is->r, false)));
                 } else {
-                    $valor = (string) $celda->v;
-                    // Los números enteros (CI, códigos) a veces llegan como "7123456.0".
-                    if (preg_match('/^\d+\.0+$/', $valor)) {
-                        $valor = (string) (int) $valor;
-                    }
+                    $valor = self::limpiarNumero((string) $celda->v);
                 }
 
                 $linea[$columna] = $valor;
@@ -150,6 +148,82 @@ class LectorTabla
         }
 
         return $matriz ?: null;
+    }
+
+
+    /**
+     * Excel (con la configuración regional en inglés) abre el CSV de la plantilla (separado con ";")
+     * con TODO en la columna A: "202400034;7123456;A1;Ana;Perez". Al guardarlo como .xlsx queda así y
+     * ninguna columna se reconoce (de ahí el falso "no tiene 9 dígitos"). Aquí se vuelve a separar.
+     */
+    private static function separarSiVieneEnUnaColumna(array $matriz): array
+    {
+        $primera = $matriz[0] ?? [];
+        $conContenido = array_values(array_filter($primera, fn ($v) => trim((string) $v) !== ''));
+        if (count($conContenido) !== 1) {
+            return $matriz;
+        }
+
+        $texto = (string) $conContenido[0];
+        $separador = substr_count($texto, ';') >= substr_count($texto, ',') ? ';' : ',';
+        if (substr_count($texto, $separador) < 1) {
+            return $matriz;
+        }
+
+        return array_map(function ($linea) use ($separador) {
+            $celda = trim((string) (array_values(array_filter($linea, fn ($v) => trim((string) $v) !== ''))[0] ?? ''));
+
+            return $celda === '' ? [] : str_getcsv($celda, $separador, '"', '');
+        }, $matriz);
+    }
+
+    /** "2.02400034E8" -> "202400034"; "7123456.0" -> "7123456"; los textos no se tocan. */
+    private static function limpiarNumero(string $valor): string
+    {
+        $valor = trim($valor);
+        if ($valor === '' || ! preg_match('/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/', $valor)) {
+            return $valor;
+        }
+
+        $numero = (float) $valor;
+        if ($numero == floor($numero) && abs($numero) < 1e15) {
+            return number_format($numero, 0, '', '');
+        }
+
+        return $valor;
+    }
+
+    /** Ruta del XML de la primera hoja según xl/workbook.xml (no siempre se llama sheet1.xml). */
+    private static function rutaPrimeraHoja(ZipArchive $zip): string
+    {
+        $porDefecto = 'xl/worksheets/sheet1.xml';
+        $libro = $zip->getFromName('xl/workbook.xml');
+        $relaciones = $zip->getFromName('xl/_rels/workbook.xml.rels');
+        if ($libro === false || $relaciones === false) {
+            return $porDefecto;
+        }
+
+        $xmlLibro = @simplexml_load_string($libro);
+        $xmlRel = @simplexml_load_string($relaciones);
+        if (! $xmlLibro || ! $xmlRel) {
+            return $porDefecto;
+        }
+
+        $hojas = $xmlLibro->sheets->sheet ?? null;
+        if (! $hojas || ! isset($hojas[0])) {
+            return $porDefecto;
+        }
+        $idRel = (string) $hojas[0]->attributes('http://schemas.openxmlformats.org/officeDocument/2006/relationships')['id'];
+
+        foreach ($xmlRel->Relationship as $rel) {
+            if ((string) $rel['Id'] === $idRel) {
+                $destino = ltrim((string) $rel['Target'], '/');
+
+                return str_starts_with($destino, 'xl/') ? $destino : 'xl/'.$destino;
+            }
+        }
+
+        return $porDefecto;
     }
 
     /** "C5" -> 2 */
