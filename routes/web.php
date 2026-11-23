@@ -93,10 +93,6 @@ Route::middleware(['auth', 'role:administrador'])->group(function () {
     Route::post('/estudiantes/{estudiante}/asignaciones', [AsignacionController::class, 'store'])->name('asignaciones.store');
     Route::delete('/asignaciones/{asignacion}', [AsignacionController::class, 'destroy'])->name('asignaciones.destroy');
 
-    Route::resource('examenes', ExamenController::class)
-        ->parameters(['examenes' => 'examen'])
-        ->except(['create', 'show', 'edit']);
-
     Route::resource('usuarios', UsuarioController::class)
         ->parameters(['usuarios' => 'usuario'])
         ->only(['index', 'store', 'update']);
@@ -129,6 +125,10 @@ Route::get('/qr/{estudiante}', [EstudianteQrController::class, 'publico'])->midd
 Route::middleware(['auth', 'role:docente'])->group(function () {
     Route::get('/docente/dashboard', [DashboardController::class, 'docente'])->name('docente.dashboard');
     Route::get('/docente/examenes', [DocenteExamenController::class, 'index'])->name('docente.examenes');
+    // Gestión de exámenes (crear, editar, eliminar): ahora es del docente, solo para las materias que dicta.
+    Route::resource('examenes', ExamenController::class)
+        ->parameters(['examenes' => 'examen'])
+        ->except(['create', 'show', 'edit']);
     Route::get('/docente/materias', [DocenteMateriaController::class, 'index'])->name('docente.materias');
 });
 

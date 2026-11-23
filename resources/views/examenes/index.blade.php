@@ -20,7 +20,7 @@
 
     <section class="hero">
         <div>
-            <span class="kicker">Módulo de administración</span>
+            <span class="kicker">Módulo del docente</span>
             <h1>Gestión de exámenes</h1>
             <p>Registrar y administrar los exámenes programados, normas de admisión y directrices de control de acceso al aula.</p>
         </div>

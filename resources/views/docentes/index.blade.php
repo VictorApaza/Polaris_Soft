@@ -21,7 +21,7 @@
         <div class="flash err" role="alert" style="display:block">
             <b>No se importó nada porque el archivo tiene errores. Corrígelos y vuelve a subirlo:</b>
             <ul style="margin:8px 0 0 18px">
-                @foreach ($errors->get('importacion')[0] as $linea)
+                @foreach ($errors->get('importacion') as $linea)
                     <li>{{ $linea }}</li>
                 @endforeach
             </ul>

@@ -3,7 +3,7 @@
 
 @section('content')
     @php
-        $rutaVolver = auth()->user()->rol === 'docente' ? route('docente.examenes') : route('examenes.index');
+        $rutaVolver = auth()->user()->rol === 'docente' ? route('docente.examenes') : route('reportes.index');
         $etiquetas = ['SIN_FOTO' => 'Sin foto', 'PENDIENTE' => 'Pendientes', 'OBSERVADA' => 'Observadas', 'APROBADA' => 'Aprobadas'];
     @endphp
 

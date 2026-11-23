@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Examen;
 use App\Models\Ambiente;
+use App\Models\Docente;
+use App\Models\Examen;
+use App\Models\Grupo;
+use App\Models\Materia;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -11,6 +14,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Gestión de exámenes: es del DOCENTE y solo para las materias que dicta (grupos a su cargo). El administrador ya no
+ * programa exámenes; sigue viendo reportes, respaldos, usuarios, materias y ambientes.
+ */
 class ExamenController extends Controller
 {
     /** Letras, espacios, acentos y ñ (sin números ni símbolos). */
@@ -19,6 +26,7 @@ class ExamenController extends Controller
     public function index(Request $request)
     {
         $examenes = Examen::with(['materia' => fn ($q) => $q->withCount('asignaciones')])
+            ->deDocente($request->user())
             ->buscar($request->string('buscar')->toString())
             ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->estado))
             ->when($request->filled('ambiente'), fn ($q) => $q->where('ambiente', $request->ambiente))
@@ -27,11 +35,11 @@ class ExamenController extends Controller
             ->withQueryString();
 
         $stats = [
-            'programados' => Examen::where('estado', '<>', 'finalizado')->count(),
-            'ambientes' => Examen::where('estado', '<>', 'finalizado')->distinct('ambiente')->count('ambiente'),
+            'programados' => Examen::deDocente($request->user())->where('estado', '<>', 'finalizado')->count(),
+            'ambientes' => Examen::deDocente($request->user())->where('estado', '<>', 'finalizado')->distinct('ambiente')->count('ambiente'),
         ];
 
-        $asignaturas = $this->asignaturasDisponibles();
+        $asignaturas = $this->asignaturasDisponibles($request);
         $carreras = $asignaturas->pluck('carrera')->unique()->sort()->values();
         $ambientes = Ambiente::orderBy('nombre')->get();
 
@@ -53,6 +61,7 @@ class ExamenController extends Controller
 
     public function update(Request $request, Examen $examen)
     {
+        $this->autorizar($request, $examen);
         $data = $this->validar($request, $examen);
 
         try {
@@ -64,8 +73,9 @@ class ExamenController extends Controller
         return redirect()->route('examenes.index')->with('status', 'Examen actualizado correctamente.');
     }
 
-    public function destroy(Examen $examen)
+    public function destroy(Request $request, Examen $examen)
     {
+        $this->autorizar($request, $examen);
         $examen->delete();
 
         return redirect()->route('examenes.index')->with('status', 'Examen eliminado.');
@@ -83,7 +93,7 @@ class ExamenController extends Controller
                     ->where('hora_inicio', $request->input('hora_inicio'))
                     ->ignore($actual?->id),
             ],
-            'carrera' => ['required', 'string', 'max:150', Rule::in($this->asignaturasDisponibles()->pluck('carrera')->unique()->all())],
+            'carrera' => ['required', 'string', 'max:150', Rule::in($this->asignaturasDisponibles($request)->pluck('carrera')->unique()->all())],
             'fecha' => ['required', 'date', 'after_or_equal:today'],
             'hora_inicio' => ['required', 'date_format:H:i'],
             'duracion_min' => ['required', 'integer', 'min:15', 'max:480'],
@@ -101,6 +111,13 @@ class ExamenController extends Controller
             'fecha.after_or_equal' => 'La fecha del examen debe ser igual o posterior a hoy.',
             'hora_inicio.date_format' => 'La hora debe tener el formato HH:MM.',
         ]);
+
+        // El docente solo programa exámenes de las asignaturas (materias) que dicta.
+        if (! $this->asignaturasDisponibles($request)->contains('id', (int) $data['asignatura_id'])) {
+            throw ValidationException::withMessages([
+                'asignatura_id' => 'Solo puedes programar exámenes de las materias que dictas.',
+            ]);
+        }
 
         $asignaturaPertenece = DB::table('estudiante_asignatura as ea')
             ->join('asignatura as a', 'a.id_asignatura', '=', 'ea.id_asignatura')
@@ -143,13 +160,25 @@ class ExamenController extends Controller
         return $data;
     }
 
-    private function asignaturasDisponibles()
+    private function autorizar(Request $request, Examen $examen): void
     {
+        abort_unless($examen->permiteA($request->user()), 403, 'Ese examen no es de una de tus materias.');
+    }
+
+    /** Asignaturas con estudiantes inscritos que el docente puede examinar (código de asignatura = sigla de su materia). */
+    private function asignaturasDisponibles(Request $request)
+    {
+        $docente = Docente::paraUsuario($request->user());
+        $siglas = $docente
+            ? Materia::whereIn('id', Grupo::where('docente_id', $docente->id)->pluck('materia_id')->unique())->pluck('sigla')->filter()->all()
+            : [];
+
         return DB::table('estudiante_asignatura as ea')
             ->join('asignatura as a', 'a.id_asignatura', '=', 'ea.id_asignatura')
             ->join('estudiante as e', 'e.id_estudiante', '=', 'ea.id_estudiante')
             ->whereNotNull('e.carrera')
             ->where('e.carrera', '<>', '')
+            ->whereIn('a.codigo', $siglas)
             ->select('a.id_asignatura as id', 'a.codigo', 'a.nombre', 'e.carrera')
             ->distinct()
             ->orderBy('e.carrera')
