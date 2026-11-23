@@ -45,9 +45,9 @@
             <div><b>Registrar docentes</b><small>Uno por uno o importando Excel / CSV</small></div>
             <svg class="i go"><use href="#i-arrow"/></svg>
         </a>
-        <a href="{{ route('examenes.index') }}">
+        <a href="{{ route('reportes.index') }}">
             <span class="ic"><svg class="i"><use href="#i-exams"/></svg></span>
-            <div><b>Programar un examen</b><small>Fecha, hora y ambiente</small></div>
+            <div><b>Ver exámenes y reportes</b><small>Asistencia, ausentes y horarios</small></div>
             <svg class="i go"><use href="#i-arrow"/></svg>
         </a>
         <a href="{{ route('materias.index') }}">

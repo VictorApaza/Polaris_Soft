@@ -2,7 +2,7 @@
 @section('title', 'Estudiantes habilitados')
 
 @section('content')
-    @php $rutaExamenes = auth()->user()->rol === 'docente' ? route('docente.examenes') : route('examenes.index'); @endphp
+    @php $rutaExamenes = auth()->user()->rol === 'docente' ? route('docente.examenes') : route('reportes.index'); @endphp
     <nav class="crumb" aria-label="Ruta">
         <a href="{{ url('/dashboard') }}">Inicio</a> › <a href="{{ $rutaExamenes }}">Exámenes</a> › <b>Habilitados</b>
     </nav>

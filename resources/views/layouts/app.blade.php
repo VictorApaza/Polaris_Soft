@@ -51,8 +51,6 @@
                 </details>
                 <a href="{{ route('materias.index') }}" @class(['active' => request()->routeIs('materias.*', 'grupos.*')])>
                     <svg class="i"><use href="#i-book"/></svg> Materias</a>
-                <a href="{{ route('examenes.index') }}" @class(['active' => request()->routeIs('examenes.*')])>
-                    <svg class="i"><use href="#i-exams"/></svg> Exámenes</a>
                 <a href="{{ route('ambientes.index') }}" @class(['active' => request()->routeIs('ambientes.*')])>
                     <svg class="i"><use href="#i-building"/></svg> Ambientes</a>
 
@@ -73,8 +71,10 @@
                 <h3>Mis clases</h3>
                 <a href="{{ route('docente.materias') }}" @class(['active' => request()->routeIs('docente.materias', 'fotos.cargar', 'estudiantes.importar.*')])>
                     <svg class="i"><use href="#i-book"/></svg> Mis materias</a>
+                <a href="{{ route('examenes.index') }}" @class(['active' => request()->routeIs('examenes.index', 'examenes.store', 'examenes.update', 'examenes.destroy')])>
+                    <svg class="i"><use href="#i-exams"/></svg> Exámenes</a>
                 <a href="{{ route('docente.examenes') }}" @class(['active' => request()->routeIs('docente.examenes', 'habilitaciones.*', 'examenes.fotos')])>
-                    <svg class="i"><use href="#i-exams"/></svg> Habilitar estudiantes</a>
+                    <svg class="i"><use href="#i-users"/></svg> Habilitar estudiantes</a>
 
                 <h3>Seguimiento</h3>
                 <a href="{{ route('reportes.index') }}" @class(['active' => request()->routeIs('reportes.*', 'en-vivo.*')])>

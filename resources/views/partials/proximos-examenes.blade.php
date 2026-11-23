@@ -2,7 +2,7 @@
 @php $rolActual = auth()->user()->rol; @endphp
 <div class="section-title">
     <span><svg class="i sm"><use href="#i-exams"/></svg> Próximos exámenes</span>
-    @if ($rolActual === 'administrador')<a href="{{ route('examenes.index') }}">Ver cronograma completo ›</a>@endif
+    @if ($rolActual === 'docente')<a href="{{ route('examenes.index') }}">Ver cronograma completo ›</a>@endif
 </div>
 <section class="card">
     <div class="scroll">
@@ -38,7 +38,7 @@
             @empty
                 <tr><td colspan="6" class="empty">
                     No hay exámenes próximos.
-                    @if ($rolActual === 'administrador')<a href="{{ route('examenes.index') }}">Registrar un examen</a>@endif
+                    @if ($rolActual === 'docente')<a href="{{ route('examenes.index') }}">Registrar un examen</a>@endif
                 </td></tr>
             @endforelse
             </tbody>
