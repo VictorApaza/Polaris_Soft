@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Docente;
 use App\Models\Estudiante;
+use App\Services\FotoDuplicadaService;
 use App\Services\QrEstudianteService;
+use App\Services\ValidadorFotoRostro;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -217,6 +219,23 @@ class FotoCargaController extends Controller
             return 'la foto es muy pequeña (mínimo 200 x 200 píxeles).';
         }
 
+        // Revisión automática (borrosa, oscura, sin rostro, lentes oscuros, caricatura).
+        $temporal = tempnam(sys_get_temp_dir(), 'foto');
+        file_put_contents($temporal, $contenido);
+        $revision = app(ValidadorFotoRostro::class)->validar($temporal);
+        @unlink($temporal);
+        if (! $revision['ok']) {
+            return lcfirst((string) $revision['motivo']);
+        }
+
+        // La misma foto no puede usarse para dos estudiantes distintos.
+        $servicioDuplicadas = app(FotoDuplicadaService::class);
+        $otro = $servicioDuplicadas->duplicadaDe($contenido, (int) $estudiante->getKey());
+        if ($otro) {
+            return "esa foto ya está registrada para otro estudiante ({$otro->codigo_universitario}). Cada estudiante debe subir su propia foto.";
+        }
+        $huellas = $servicioDuplicadas->calcular($contenido);
+
         $extension = $info[2] === IMAGETYPE_PNG ? 'png' : 'jpg';
         $ruta = 'fotos_estudiantes/'.$estudiante->getKey().'_'.time().'_'.random_int(100, 999).'.'.$extension;
         Storage::disk('local')->put($ruta, $contenido);
@@ -228,6 +247,8 @@ class FotoCargaController extends Controller
         // La foto cargada por el personal ya queda aprobada (no hace falta que un docente la revise).
         $estudiante->forceFill([
             'foto_path' => $ruta,
+            'foto_hash' => $huellas['hash'],
+            'foto_huella' => $huellas['huella'],
             'foto_estado' => 'APROBADA',
             'foto_observacion' => null,
             'foto_subida_at' => now(),
