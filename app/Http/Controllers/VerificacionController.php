@@ -10,6 +10,7 @@ use App\Models\Habilitacion;
 use App\Models\Incidencia;
 use App\Models\Ingreso;
 use App\Models\IntentoIngreso;
+use App\Models\NormaParticular;
 use App\Models\TransparenciaIngreso;
 use App\Models\Verificacion;
 use App\Services\ExamenNoCorrespondeService;
@@ -289,6 +290,12 @@ class VerificacionController extends Controller
             'ambiente_coincide' => $ambienteCoincide,
             'ambiente_control' => $this->datosDeAmbiente($ambienteControl),
             'ambiente_asignado' => $this->datosDeAmbiente($ambienteAsignado, (string) $examen->ambiente),
+            // Normas del examen (generales) y norma particular de este estudiante, para que el control las vea al verificar.
+            'normas' => [
+                'admision' => $examen->normas_admision ?: null,
+                'salida' => $examen->normas_salida ?: null,
+                'particular' => NormaParticular::textoDe($estudiante->id_estudiante, $examen->id),
+            ],
         ] + $resumen, esIntento: false);
     }
 

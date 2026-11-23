@@ -23,10 +23,12 @@ use App\Http\Controllers\FotoCargaController;
 use App\Http\Controllers\IncidenciaController;
 use App\Http\Controllers\IntentoIngresoController;
 use App\Http\Controllers\MateriaController;
+use App\Http\Controllers\NormaParticularController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ReporteExamenController;
 use App\Http\Controllers\RespaldoController;
+use App\Http\Controllers\SaludController;
 use App\Http\Controllers\SituacionExcepcionalController;
 use App\Http\Controllers\TransparenciaIngresoController;
 use App\Http\Controllers\UsuarioController;
@@ -38,6 +40,9 @@ Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login')->m
 Route::post('/login', [AuthController::class, 'login'])->middleware('guest');
 
 // --- Recuperación de contraseña ---
+// Disponibilidad del sistema (monitoreo): pública, sin datos sensibles.
+Route::get('/salud', SaludController::class)->name('salud');
+
 Route::middleware('guest')->group(function () {
     Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:5,1')->name('password.email');
@@ -104,6 +109,8 @@ Route::middleware(['auth', 'role:administrador,docente'])->group(function () {
     Route::post('/examenes/{examen}/habilitados', [HabilitacionController::class, 'habilitarMasiva'])->name('habilitaciones.masiva');
     Route::post('/examenes/{examen}/habilitados/{estudiante}/inhabilitar', [HabilitacionController::class, 'inhabilitar'])->name('habilitaciones.inhabilitar');
     Route::delete('/examenes/{examen}/habilitados/{estudiante}', [HabilitacionController::class, 'quitar'])->name('habilitaciones.quitar');
+    // Norma particular de un estudiante en este examen (requerimiento general 2)
+    Route::put('/examenes/{examen}/habilitados/{estudiante}/norma', [NormaParticularController::class, 'guardar'])->name('normas.guardar');
     // Enviar por correo el QR a los habilitados de un examen (RQ7)
     Route::post('/examenes/{examen}/habilitados-enviar-qr', [EstudianteQrController::class, 'enviarHabilitados'])->name('habilitaciones.enviar_qr');
 });

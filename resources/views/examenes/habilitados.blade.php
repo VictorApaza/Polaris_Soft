@@ -73,12 +73,18 @@
                                     <span class="badge observado">Inhabilitado</span>
                                 @endif
                             </td>
-                            <td class="muted">{{ $h?->motivo?->descripcion }}{{ $h?->observacion ? ' — '.$h->observacion : '' }}</td>
+                            <td class="muted">{{ $h?->motivo?->descripcion }}{{ $h?->observacion ? ' — '.$h->observacion : '' }}
+                                @if ($normas->get($est->id_estudiante))
+                                    <div style="margin-top:4px"><b>Norma particular:</b> {{ $normas->get($est->id_estudiante) }}</div>
+                                @endif
+                            </td>
                             <td>
                                 <div class="actions">
                                     <button type="button" class="link-btn ok" onclick="habilitarUno({{ $est->id_estudiante }})">Habilitar</button>
                                     <button type="button" class="link-btn danger"
                                             onclick="abrirInhabilitar({{ $est->id_estudiante }}, @js($est->nombre_completo))">Inhabilitar</button>
+                                    <button type="button" class="link-btn"
+                                            onclick="abrirNorma({{ $est->id_estudiante }}, @js($est->nombre_completo), @js($normas->get($est->id_estudiante) ?? ''))">Norma</button>
                                     @if ($h)
                                         <button type="button" class="link-btn muted" onclick="quitarUno({{ $est->id_estudiante }})">Quitar</button>
                                     @endif
@@ -115,6 +121,29 @@
     <form id="form-quitar" method="POST" style="display:none">
         @csrf @method('DELETE')
     </form>
+
+    {{-- ================= MODAL: norma particular del estudiante en este examen ================= --}}
+    <dialog id="modal-norma">
+        <form method="POST" id="form-norma">
+            @csrf @method('PUT')
+            <div class="m-head">
+                <span class="ic"><svg class="i"><use href="#i-book"/></svg></span>
+                <div><b>Norma particular</b><small id="norma-nombre"></small></div>
+                <button type="button" class="icon-btn x" aria-label="Cerrar" onclick="this.closest('dialog').close()"><svg class="i"><use href="#i-x"/></svg></button>
+            </div>
+            <div class="m-body">
+                <div class="field">
+                    <label for="norma-texto">Norma de este estudiante en este examen <i>opcional</i></label>
+                    <textarea id="norma-texto" name="norma" rows="4" maxlength="1000" placeholder="Ej.: puede usar calculadora científica por indicación del docente."></textarea>
+                    <small class="muted">El personal de control la verá al verificar su ingreso. Déjala vacía para quitarla.</small>
+                </div>
+            </div>
+            <div class="m-foot">
+                <button type="button" class="btn ghost" onclick="this.closest('dialog').close()">Cancelar</button>
+                <button type="submit" class="btn">Guardar norma</button>
+            </div>
+        </form>
+    </dialog>
 
     {{-- ================= MODAL: inhabilitar ================= --}}
     <dialog id="modal-inhabilitar">
@@ -165,6 +194,13 @@
         const f = document.getElementById('form-quitar');
         f.action = BASE + '/' + id;
         f.submit();
+    }
+
+    function abrirNorma(id, nombre, texto) {
+        document.getElementById('norma-nombre').textContent = nombre;
+        document.getElementById('form-norma').action = BASE + '/' + id + '/norma';
+        document.getElementById('norma-texto').value = texto;
+        document.getElementById('modal-norma').showModal();
     }
 
     function abrirInhabilitar(id, nombre) {

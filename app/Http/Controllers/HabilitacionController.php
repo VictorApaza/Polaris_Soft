@@ -8,6 +8,7 @@ use App\Models\Examen;
 use App\Models\Grupo;
 use App\Models\Habilitacion;
 use App\Models\MotivoInhabilitacion;
+use App\Models\NormaParticular;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -47,10 +48,11 @@ class HabilitacionController extends Controller
         }
 
         $motivos = MotivoInhabilitacion::orderBy('descripcion')->get();
+        $normas = NormaParticular::where('examen_id', $examen->id)->pluck('norma', 'estudiante_id');
 
         return view('examenes.habilitados', compact(
             'examen', 'usaGrupos', 'grupos', 'grupoId', 'estudiantes', 'gruposPorEstudiante',
-            'habilitaciones', 'resumen', 'motivos'
+            'habilitaciones', 'resumen', 'motivos', 'normas'
         ));
     }
 
