@@ -618,6 +618,18 @@
             }
             card.appendChild(estadoAmbiente);
         }
+        if (d.tipo === 'habilitado' && d.normas) {
+            // Norma particular del estudiante (destacada) y normas generales del examen.
+            if (d.normas.particular) {
+                card.appendChild(el('div', 'v-aviso warn', 'Norma particular de este estudiante: ' + d.normas.particular));
+            }
+            if (d.normas.admision) {
+                card.appendChild(el('div', 'v-aviso info', 'Normas de admisión del examen: ' + d.normas.admision));
+            }
+            if (d.normas.salida) {
+                card.appendChild(el('div', 'v-aviso info', 'Normas de salida del examen: ' + d.normas.salida));
+            }
+        }
         if (d.tipo === 'inactivo') {
             card.appendChild(el('div', 'v-aviso err', d.mensaje + ' No se puede autorizar su ingreso.'));
         }

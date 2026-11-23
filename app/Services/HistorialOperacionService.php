@@ -57,6 +57,7 @@ class HistorialOperacionService
         'fotos.zip' => 'Carga masiva de fotos',
         'fotos.aprobar' => 'Aprobar foto',
         'fotos.observar' => 'Observar foto',
+        'normas.guardar' => 'Guardar norma particular',
         'respaldos.store' => 'Crear respaldo',
         'respaldos.verificar' => 'Verificar respaldo',
         'respaldos.restaurar' => 'Restaurar respaldo',
